@@ -77,6 +77,7 @@ framework for multiple categories.
 
 - `src/main/kotlin/io/github/erikgust2/asterix/cat062`: codec and model types
 - `src/test/kotlin/io/github/erikgust2/asterix/cat062`: codec tests
+- `docs/ARCHITECTURE.md`: how the current codec is structured internally
 - `cat062-asterix-system-track-data-part9-v1.15-20110901.pdf`: local reference spec
 
 ## Coordinates
