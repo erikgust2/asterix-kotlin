@@ -85,7 +85,7 @@ data class AircraftDerivedData(
     val emitterCategory: Int? = null,
     val positionWgs84: Wgs84Position? = null,
     val geometricAltitudeFeet: Double? = null,
-    val positionUncertaintyMeters: Double? = null,
+    val positionUncertaintyCode: Int? = null,
     val modeSMessages: List<ModeSMessage>? = null,
     val indicatedAirspeedKnots: Int? = null,
     val machNumber: Double? = null,

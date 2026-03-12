@@ -1,7 +1,7 @@
 package io.github.erikgust2.asterix.cat062
 
 import java.nio.ByteBuffer
-import kotlin.math.roundToInt
+import kotlin.math.abs
 
 internal fun Cat062CodecSupport.readAircraftDerivedData(buffer: ByteBuffer): AircraftDerivedData {
     val indicator = readCompoundIndicator(buffer)
@@ -28,7 +28,7 @@ internal fun Cat062CodecSupport.readAircraftDerivedData(buffer: ByteBuffer): Air
     var emitterCategory: Int? = null
     var positionWgs84: Wgs84Position? = null
     var geometricAltitudeFeet: Double? = null
-    var positionUncertaintyMeters: Double? = null
+    var positionUncertaintyCode: Int? = null
     var modeSMessages: List<ModeSMessage>? = null
     var indicatedAirspeedKnots: Int? = null
     var machNumber: Double? = null
@@ -102,8 +102,17 @@ internal fun Cat062CodecSupport.readAircraftDerivedData(buffer: ByteBuffer): Air
     if (isCompoundSubfieldPresent(indicator, 12)) acasResolutionAdvisoryReport = AcasResolutionAdvisory(readUnsignedInt56(buffer))
     if (isCompoundSubfieldPresent(indicator, 13)) barometricVerticalRateFeetPerMinute = signExtend(buffer.short.toUnsignedInt() and 0x7FFF, 15) * 6.25
     if (isCompoundSubfieldPresent(indicator, 14)) geometricVerticalRateFeetPerMinute = signExtend(buffer.short.toUnsignedInt() and 0x7FFF, 15) * 6.25
-    if (isCompoundSubfieldPresent(indicator, 15)) rollAngleDegrees = buffer.short.toDouble() * (45.0 / 256.0)
-    if (isCompoundSubfieldPresent(indicator, 16)) trackAngleRateDegreesPerSecond = buffer.short.toDouble() * (8.0 / 32.0)
+    if (isCompoundSubfieldPresent(indicator, 15)) rollAngleDegrees = buffer.short.toDouble() * 0.01
+    if (isCompoundSubfieldPresent(indicator, 16)) {
+        val raw = buffer.short.toUnsignedInt()
+        val turnIndicator = (raw ushr 14) and 0x03
+        val encodedRate = signExtend((raw ushr 1) and 0x7F, 7) * 0.25
+        trackAngleRateDegreesPerSecond = when {
+            turnIndicator == 1 && encodedRate > 0.0 -> -encodedRate
+            turnIndicator == 2 && encodedRate < 0.0 -> abs(encodedRate)
+            else -> encodedRate
+        }
+    }
     if (isCompoundSubfieldPresent(indicator, 17)) trackAngleDegrees = buffer.short.toUnsignedInt() * (360.0 / 65536.0)
     if (isCompoundSubfieldPresent(indicator, 18)) groundSpeedKnots = buffer.short.toUnsignedInt() * (1.0 / 16384.0) * 3600.0
     if (isCompoundSubfieldPresent(indicator, 19)) velocityUncertaintyCategory = buffer.get().toUnsignedInt() ushr 5
@@ -111,7 +120,7 @@ internal fun Cat062CodecSupport.readAircraftDerivedData(buffer: ByteBuffer): Air
     if (isCompoundSubfieldPresent(indicator, 21)) emitterCategory = buffer.get().toUnsignedInt()
     if (isCompoundSubfieldPresent(indicator, 22)) positionWgs84 = readWgs84Position(buffer)
     if (isCompoundSubfieldPresent(indicator, 23)) geometricAltitudeFeet = buffer.short.toDouble() * 6.25
-    if (isCompoundSubfieldPresent(indicator, 24)) positionUncertaintyMeters = buffer.get().toUnsignedInt().toDouble()
+    if (isCompoundSubfieldPresent(indicator, 24)) positionUncertaintyCode = buffer.get().toUnsignedInt() and 0x0F
     if (isCompoundSubfieldPresent(indicator, 25)) {
         val rep = buffer.get().toUnsignedInt()
         modeSMessages = List(rep) {
@@ -122,7 +131,7 @@ internal fun Cat062CodecSupport.readAircraftDerivedData(buffer: ByteBuffer): Air
     }
     if (isCompoundSubfieldPresent(indicator, 26)) indicatedAirspeedKnots = buffer.short.toUnsignedInt()
     if (isCompoundSubfieldPresent(indicator, 27)) machNumber = buffer.short.toUnsignedInt() * 0.008
-    if (isCompoundSubfieldPresent(indicator, 28)) barometricPressureSettingHpa = (buffer.short.toUnsignedInt() and 0x0FFF) * 0.1
+    if (isCompoundSubfieldPresent(indicator, 28)) barometricPressureSettingHpa = 800.0 + ((buffer.short.toUnsignedInt() and 0x0FFF) * 0.1)
 
     return AircraftDerivedData(
         targetAddress = targetAddress,
@@ -148,7 +157,7 @@ internal fun Cat062CodecSupport.readAircraftDerivedData(buffer: ByteBuffer): Air
         emitterCategory = emitterCategory,
         positionWgs84 = positionWgs84,
         geometricAltitudeFeet = geometricAltitudeFeet,
-        positionUncertaintyMeters = positionUncertaintyMeters,
+        positionUncertaintyCode = positionUncertaintyCode,
         modeSMessages = modeSMessages,
         indicatedAirspeedKnots = indicatedAirspeedKnots,
         machNumber = machNumber,
@@ -181,7 +190,7 @@ internal fun Cat062CodecSupport.writeAircraftDerivedData(buffer: ByteBuffer, val
     if (value.emitterCategory != null) present += 21
     if (value.positionWgs84 != null) present += 22
     if (value.geometricAltitudeFeet != null) present += 23
-    if (value.positionUncertaintyMeters != null) present += 24
+    if (value.positionUncertaintyCode != null) present += 24
     if (value.modeSMessages != null) present += 25
     if (value.indicatedAirspeedKnots != null) present += 26
     if (value.machNumber != null) present += 27
@@ -190,28 +199,33 @@ internal fun Cat062CodecSupport.writeAircraftDerivedData(buffer: ByteBuffer, val
 
     value.targetAddress?.let { writeUnsignedInt24(buffer, it) }
     value.targetIdentification?.let { encodePackedCallsign(buffer, it) }
-    value.magneticHeadingDegrees?.let { buffer.putUnsignedShort((it / (360.0 / 65536.0)).roundToInt(), "aircraftDerivedData.magneticHeadingDegrees") }
+    value.magneticHeadingDegrees?.let { buffer.putUnsignedShort(quantize(it, 360.0 / 65536.0, "aircraftDerivedData.magneticHeadingDegrees"), "aircraftDerivedData.magneticHeadingDegrees") }
     value.indicatedAirspeed?.let {
         val raw = if (it.type == AirspeedType.MACH) {
-            0x8000 or (it.value * 1000.0).roundToInt()
+            0x8000 or encodeUnsignedBits(quantize(it.value, 0.001, "aircraftDerivedData.indicatedAirspeed"), 15, "aircraftDerivedData.indicatedAirspeed")
         } else {
-            ((it.value / 3600.0) / (1.0 / 16384.0)).roundToInt()
+            encodeUnsignedBits(quantize(it.value, 3600.0 / 16384.0, "aircraftDerivedData.indicatedAirspeed"), 15, "aircraftDerivedData.indicatedAirspeed")
         }
         buffer.putUnsignedShort(raw, "aircraftDerivedData.indicatedAirspeed")
     }
-    value.trueAirspeedKnots?.let { buffer.putUnsignedShort(it, "aircraftDerivedData.trueAirspeedKnots") }
+    value.trueAirspeedKnots?.let {
+        require(it in 0..2046) { "aircraftDerivedData.trueAirspeedKnots out of range: $it" }
+        buffer.putUnsignedShort(it, "aircraftDerivedData.trueAirspeedKnots")
+    }
     value.selectedAltitude?.let {
         require(it.sourceCode in 0..0x03) { "aircraftDerivedData.selectedAltitude.sourceCode out of range: ${it.sourceCode}" }
+        require(it.flightLevel in -52.0..4000.0) { "aircraftDerivedData.selectedAltitude.flightLevel out of range: ${it.flightLevel}" }
         var raw = (if (it.sourceAvailable) 0x8000 else 0) or ((it.sourceCode and 0x03) shl 13)
-        raw = raw or encodeSignedBits((it.flightLevel / 0.25).roundToInt(), 13, "aircraftDerivedData.selectedAltitude.flightLevel")
+        raw = raw or encodeSignedBits(quantize(it.flightLevel, 0.25, "aircraftDerivedData.selectedAltitude.flightLevel"), 13, "aircraftDerivedData.selectedAltitude.flightLevel")
         buffer.putShort(raw.toShort())
     }
     value.finalStateSelectedAltitude?.let {
+        require(it.flightLevel in -52.0..4000.0) { "aircraftDerivedData.finalStateSelectedAltitude.flightLevel out of range: ${it.flightLevel}" }
         var raw = 0
         if (it.managedVerticalModeActive) raw = raw or 0x8000
         if (it.altitudeHoldActive) raw = raw or 0x4000
         if (it.approachModeActive) raw = raw or 0x2000
-        raw = raw or encodeSignedBits((it.flightLevel / 0.25).roundToInt(), 13, "aircraftDerivedData.finalStateSelectedAltitude.flightLevel")
+        raw = raw or encodeSignedBits(quantize(it.flightLevel, 0.25, "aircraftDerivedData.finalStateSelectedAltitude.flightLevel"), 13, "aircraftDerivedData.finalStateSelectedAltitude.flightLevel")
         buffer.putShort(raw.toShort())
     }
     value.trajectoryIntentStatus?.let {
@@ -248,15 +262,27 @@ internal fun Cat062CodecSupport.writeAircraftDerivedData(buffer: ByteBuffer, val
     }
     value.acasResolutionAdvisoryReport?.let { writeUnsignedInt56(buffer, it.raw) }
     value.barometricVerticalRateFeetPerMinute?.let {
-        buffer.putUnsignedShort(encodeSignedBits((it / 6.25).roundToInt(), 15, "aircraftDerivedData.barometricVerticalRateFeetPerMinute"), "aircraftDerivedData.barometricVerticalRateFeetPerMinute")
+        buffer.putUnsignedShort(encodeSignedBits(quantize(it, 6.25, "aircraftDerivedData.barometricVerticalRateFeetPerMinute"), 15, "aircraftDerivedData.barometricVerticalRateFeetPerMinute"), "aircraftDerivedData.barometricVerticalRateFeetPerMinute")
     }
     value.geometricVerticalRateFeetPerMinute?.let {
-        buffer.putUnsignedShort(encodeSignedBits((it / 6.25).roundToInt(), 15, "aircraftDerivedData.geometricVerticalRateFeetPerMinute"), "aircraftDerivedData.geometricVerticalRateFeetPerMinute")
+        buffer.putUnsignedShort(encodeSignedBits(quantize(it, 6.25, "aircraftDerivedData.geometricVerticalRateFeetPerMinute"), 15, "aircraftDerivedData.geometricVerticalRateFeetPerMinute"), "aircraftDerivedData.geometricVerticalRateFeetPerMinute")
     }
-    value.rollAngleDegrees?.let { buffer.putSignedShort((it / (45.0 / 256.0)).roundToInt(), "aircraftDerivedData.rollAngleDegrees") }
-    value.trackAngleRateDegreesPerSecond?.let { buffer.putSignedShort((it / 0.25).roundToInt(), "aircraftDerivedData.trackAngleRateDegreesPerSecond") }
-    value.trackAngleDegrees?.let { buffer.putUnsignedShort((it / (360.0 / 65536.0)).roundToInt(), "aircraftDerivedData.trackAngleDegrees") }
-    value.groundSpeedKnots?.let { buffer.putUnsignedShort(((it / 3600.0) / (1.0 / 16384.0)).roundToInt(), "aircraftDerivedData.groundSpeedKnots") }
+    value.rollAngleDegrees?.let {
+        require(it in -180.0..180.0) { "aircraftDerivedData.rollAngleDegrees out of range: $it" }
+        buffer.putSignedShort(quantize(it, 0.01, "aircraftDerivedData.rollAngleDegrees"), "aircraftDerivedData.rollAngleDegrees")
+    }
+    value.trackAngleRateDegreesPerSecond?.let {
+        require(it in -15.0..15.0) { "aircraftDerivedData.trackAngleRateDegreesPerSecond out of range: $it" }
+        val turnIndicator = when {
+            it < 0.0 -> 0x4000
+            it > 0.0 -> 0x8000
+            else -> 0xC000
+        }
+        val encodedRate = encodeSignedBits(quantize(it, 0.25, "aircraftDerivedData.trackAngleRateDegreesPerSecond"), 7, "aircraftDerivedData.trackAngleRateDegreesPerSecond") shl 1
+        buffer.putUnsignedShort(turnIndicator or encodedRate, "aircraftDerivedData.trackAngleRateDegreesPerSecond")
+    }
+    value.trackAngleDegrees?.let { buffer.putUnsignedShort(quantize(it, 360.0 / 65536.0, "aircraftDerivedData.trackAngleDegrees"), "aircraftDerivedData.trackAngleDegrees") }
+    value.groundSpeedKnots?.let { buffer.putUnsignedShort(quantize(it, 3600.0 / 16384.0, "aircraftDerivedData.groundSpeedKnots"), "aircraftDerivedData.groundSpeedKnots") }
     value.velocityUncertaintyCategory?.let {
         require(it in 0..0x07) { "aircraftDerivedData.velocityUncertaintyCategory out of range: $it" }
         buffer.put((it shl 5).toByte())
@@ -264,8 +290,13 @@ internal fun Cat062CodecSupport.writeAircraftDerivedData(buffer: ByteBuffer, val
     value.meteorologicalData?.let { writeMeteorologicalData(buffer, it) }
     value.emitterCategory?.let { buffer.putUnsignedByte(it, "aircraftDerivedData.emitterCategory") }
     value.positionWgs84?.let { writeWgs84Position(buffer, it) }
-    value.geometricAltitudeFeet?.let { buffer.putSignedShort((it / 6.25).roundToInt(), "aircraftDerivedData.geometricAltitudeFeet") }
-    value.positionUncertaintyMeters?.let { buffer.putUnsignedByte(it.roundToInt(), "aircraftDerivedData.positionUncertaintyMeters") }
+    value.geometricAltitudeFeet?.let {
+        require(it in -1500.0..150000.0) { "aircraftDerivedData.geometricAltitudeFeet out of range: $it" }
+        buffer.putSignedShort(quantize(it, 6.25, "aircraftDerivedData.geometricAltitudeFeet"), "aircraftDerivedData.geometricAltitudeFeet")
+    }
+    value.positionUncertaintyCode?.let {
+        buffer.putUnsignedByte(encodeUnsignedBits(it, 4, "aircraftDerivedData.positionUncertaintyCode"), "aircraftDerivedData.positionUncertaintyCode")
+    }
     value.modeSMessages?.let {
         buffer.putUnsignedByte(it.size, "aircraftDerivedData.modeSMessages.size")
         it.forEach { message ->
@@ -276,9 +307,21 @@ internal fun Cat062CodecSupport.writeAircraftDerivedData(buffer: ByteBuffer, val
             buffer.put(((message.bds1 shl 4) or message.bds2).toByte())
         }
     }
-    value.indicatedAirspeedKnots?.let { buffer.putUnsignedShort(it, "aircraftDerivedData.indicatedAirspeedKnots") }
-    value.machNumber?.let { buffer.putUnsignedShort((it / 0.008).roundToInt(), "aircraftDerivedData.machNumber") }
-    value.barometricPressureSettingHpa?.let { buffer.putUnsignedShort((it / 0.1).roundToInt(), "aircraftDerivedData.barometricPressureSettingHpa") }
+    value.indicatedAirspeedKnots?.let {
+        require(it in 0..1100) { "aircraftDerivedData.indicatedAirspeedKnots out of range: $it" }
+        buffer.putUnsignedShort(it, "aircraftDerivedData.indicatedAirspeedKnots")
+    }
+    value.machNumber?.let {
+        require(it in 0.0..4.096) { "aircraftDerivedData.machNumber out of range: $it" }
+        buffer.putUnsignedShort(quantize(it, 0.008, "aircraftDerivedData.machNumber"), "aircraftDerivedData.machNumber")
+    }
+    value.barometricPressureSettingHpa?.let {
+        require(it in 800.0..1209.5) { "aircraftDerivedData.barometricPressureSettingHpa out of range: $it" }
+        buffer.putUnsignedShort(
+            encodeUnsignedBits(quantize(it - 800.0, 0.1, "aircraftDerivedData.barometricPressureSettingHpa"), 12, "aircraftDerivedData.barometricPressureSettingHpa"),
+            "aircraftDerivedData.barometricPressureSettingHpa",
+        )
+    }
 }
 
 internal fun Cat062CodecSupport.readTrackStatus(buffer: ByteBuffer): TrackStatus {
@@ -416,7 +459,7 @@ internal fun Cat062CodecSupport.writeSystemTrackUpdateAges(buffer: ByteBuffer, v
     val present = order.mapIndexedNotNull { index, type -> if (value.agesSeconds.containsKey(type)) index + 1 else null }.toSet()
     writeCompoundIndicator(buffer, present)
     order.forEach { type ->
-        value.agesSeconds[type]?.let { buffer.putUnsignedByte((it / 0.25).roundToInt(), "systemTrackUpdateAges.${type.name}") }
+        value.agesSeconds[type]?.let { buffer.putUnsignedByte(quantize(it, 0.25, "systemTrackUpdateAges.${type.name}"), "systemTrackUpdateAges.${type.name}") }
     }
 }
 
@@ -486,7 +529,7 @@ internal fun Cat062CodecSupport.writeTrackDataAges(buffer: ByteBuffer, value: Tr
         .toSet()
     writeCompoundIndicator(buffer, present)
     TrackDataAgeType.entries.forEach { type ->
-        value.agesSeconds[type]?.let { buffer.putUnsignedByte((it / 0.25).roundToInt(), "trackDataAges.${type.name}") }
+        value.agesSeconds[type]?.let { buffer.putUnsignedByte(quantize(it, 0.25, "trackDataAges.${type.name}"), "trackDataAges.${type.name}") }
     }
 }
 
@@ -614,7 +657,7 @@ internal fun Cat062CodecSupport.writeFlightPlanRelatedData(buffer: ByteBuffer, v
     value.departureAerodrome?.let { writeAscii(buffer, it, 4) }
     value.destinationAerodrome?.let { writeAscii(buffer, it, 4) }
     value.runwayDesignation?.let { writeAscii(buffer, it, 3) }
-    value.currentClearedFlightLevel?.let { buffer.putSignedShort((it / 0.25).roundToInt(), "flightPlanRelatedData.currentClearedFlightLevel") }
+    value.currentClearedFlightLevel?.let { buffer.putSignedShort(quantize(it, 0.25, "flightPlanRelatedData.currentClearedFlightLevel"), "flightPlanRelatedData.currentClearedFlightLevel") }
     value.currentControlPosition?.let {
         buffer.putUnsignedByte(it.centre, "flightPlanRelatedData.currentControlPosition.centre")
         buffer.putUnsignedByte(it.position, "flightPlanRelatedData.currentControlPosition.position")
@@ -724,12 +767,12 @@ internal fun Cat062CodecSupport.writeMode5DataReports(buffer: ByteBuffer, value:
         buffer.putInt(raw)
     }
     value.positionWgs84?.let { writeWgs84Position(buffer, it) }
-    value.geometricAltitudeFeet?.let { buffer.putSignedShort((it / 25.0).roundToInt(), "mode5DataReports.geometricAltitudeFeet") }
+    value.geometricAltitudeFeet?.let { buffer.putSignedShort(quantize(it, 25.0, "mode5DataReports.geometricAltitudeFeet"), "mode5DataReports.geometricAltitudeFeet") }
     value.extendedMode1Code?.let {
         require(it.code in 0..0x0FFF) { "mode5DataReports.extendedMode1Code.code out of range: ${it.code}" }
         buffer.putUnsignedShort(it.code, "mode5DataReports.extendedMode1Code")
     }
-    value.timeOffsetSeconds?.let { buffer.putSignedByte((it * 128.0).roundToInt(), "mode5DataReports.timeOffsetSeconds") }
+    value.timeOffsetSeconds?.let { buffer.putSignedByte(quantize(it, 1.0 / 128.0, "mode5DataReports.timeOffsetSeconds"), "mode5DataReports.timeOffsetSeconds") }
     value.xPulsePresence?.let {
         val octet = (if (it.x5) 0x10 else 0) or (if (it.xc) 0x08 else 0) or (if (it.x3) 0x04 else 0) or
             (if (it.x2) 0x02 else 0) or (if (it.x1) 0x01 else 0)
@@ -802,25 +845,25 @@ internal fun Cat062CodecSupport.writeEstimatedAccuracies(buffer: ByteBuffer, val
     writeCompoundIndicator(buffer, present)
 
     value.positionCartesian?.let {
-        buffer.putUnsignedShort((it.xMeters / 0.5).roundToInt(), "estimatedAccuracies.positionCartesian.xMeters")
-        buffer.putUnsignedShort((it.yMeters / 0.5).roundToInt(), "estimatedAccuracies.positionCartesian.yMeters")
+        buffer.putUnsignedShort(quantize(it.xMeters, 0.5, "estimatedAccuracies.positionCartesian.xMeters"), "estimatedAccuracies.positionCartesian.xMeters")
+        buffer.putUnsignedShort(quantize(it.yMeters, 0.5, "estimatedAccuracies.positionCartesian.yMeters"), "estimatedAccuracies.positionCartesian.yMeters")
     }
-    value.xyCovarianceMeters?.let { buffer.putSignedShort((it / 0.5).roundToInt(), "estimatedAccuracies.xyCovarianceMeters") }
+    value.xyCovarianceMeters?.let { buffer.putSignedShort(quantize(it, 0.5, "estimatedAccuracies.xyCovarianceMeters"), "estimatedAccuracies.xyCovarianceMeters") }
     value.positionWgs84?.let {
-        buffer.putUnsignedShort((it.latitudeDegrees / WGS84_RESOLUTION).roundToInt(), "estimatedAccuracies.positionWgs84.latitudeDegrees")
-        buffer.putUnsignedShort((it.longitudeDegrees / WGS84_RESOLUTION).roundToInt(), "estimatedAccuracies.positionWgs84.longitudeDegrees")
+        buffer.putUnsignedShort(quantize(it.latitudeDegrees, WGS84_RESOLUTION, "estimatedAccuracies.positionWgs84.latitudeDegrees"), "estimatedAccuracies.positionWgs84.latitudeDegrees")
+        buffer.putUnsignedShort(quantize(it.longitudeDegrees, WGS84_RESOLUTION, "estimatedAccuracies.positionWgs84.longitudeDegrees"), "estimatedAccuracies.positionWgs84.longitudeDegrees")
     }
-    value.geometricAltitudeFeet?.let { buffer.putUnsignedByte((it / 6.25).roundToInt(), "estimatedAccuracies.geometricAltitudeFeet") }
-    value.barometricAltitudeFeet?.let { buffer.putUnsignedByte((it / 25.0).roundToInt(), "estimatedAccuracies.barometricAltitudeFeet") }
+    value.geometricAltitudeFeet?.let { buffer.putUnsignedByte(quantize(it, 6.25, "estimatedAccuracies.geometricAltitudeFeet"), "estimatedAccuracies.geometricAltitudeFeet") }
+    value.barometricAltitudeFeet?.let { buffer.putUnsignedByte(quantize(it, 25.0, "estimatedAccuracies.barometricAltitudeFeet"), "estimatedAccuracies.barometricAltitudeFeet") }
     value.trackVelocity?.let {
-        buffer.putUnsignedByte((it.xMetersPerSecond / 0.25).roundToInt(), "estimatedAccuracies.trackVelocity.xMetersPerSecond")
-        buffer.putUnsignedByte((it.yMetersPerSecond / 0.25).roundToInt(), "estimatedAccuracies.trackVelocity.yMetersPerSecond")
+        buffer.putUnsignedByte(quantize(it.xMetersPerSecond, 0.25, "estimatedAccuracies.trackVelocity.xMetersPerSecond"), "estimatedAccuracies.trackVelocity.xMetersPerSecond")
+        buffer.putUnsignedByte(quantize(it.yMetersPerSecond, 0.25, "estimatedAccuracies.trackVelocity.yMetersPerSecond"), "estimatedAccuracies.trackVelocity.yMetersPerSecond")
     }
     value.trackAcceleration?.let {
-        buffer.putUnsignedByte((it.xMetersPerSecondSquared / 0.25).roundToInt(), "estimatedAccuracies.trackAcceleration.xMetersPerSecondSquared")
-        buffer.putUnsignedByte((it.yMetersPerSecondSquared / 0.25).roundToInt(), "estimatedAccuracies.trackAcceleration.yMetersPerSecondSquared")
+        buffer.putUnsignedByte(quantize(it.xMetersPerSecondSquared, 0.25, "estimatedAccuracies.trackAcceleration.xMetersPerSecondSquared"), "estimatedAccuracies.trackAcceleration.xMetersPerSecondSquared")
+        buffer.putUnsignedByte(quantize(it.yMetersPerSecondSquared, 0.25, "estimatedAccuracies.trackAcceleration.yMetersPerSecondSquared"), "estimatedAccuracies.trackAcceleration.yMetersPerSecondSquared")
     }
-    value.rateOfClimbDescentFeetPerMinute?.let { buffer.putUnsignedByte((it / 6.25).roundToInt(), "estimatedAccuracies.rateOfClimbDescentFeetPerMinute") }
+    value.rateOfClimbDescentFeetPerMinute?.let { buffer.putUnsignedByte(quantize(it, 6.25, "estimatedAccuracies.rateOfClimbDescentFeetPerMinute"), "estimatedAccuracies.rateOfClimbDescentFeetPerMinute") }
 }
 
 internal fun Cat062CodecSupport.readMeasuredInformation(buffer: ByteBuffer): MeasuredInformation {
@@ -889,12 +932,12 @@ internal fun Cat062CodecSupport.writeMeasuredInformation(buffer: ByteBuffer, val
 
     value.sensorIdentification?.let { writeDataSourceIdentifier(buffer, it) }
     value.position?.let {
-        buffer.putUnsignedShort((it.rangeNm / (1.0 / 256.0)).roundToInt(), "measuredInformation.position.rangeNm")
-        buffer.putUnsignedShort((it.azimuthDegrees / (360.0 / 65536.0)).roundToInt(), "measuredInformation.position.azimuthDegrees")
+        buffer.putUnsignedShort(quantize(it.rangeNm, 1.0 / 256.0, "measuredInformation.position.rangeNm"), "measuredInformation.position.rangeNm")
+        buffer.putUnsignedShort(quantize(it.azimuthDegrees, 360.0 / 65536.0, "measuredInformation.position.azimuthDegrees"), "measuredInformation.position.azimuthDegrees")
     }
-    value.heightFeet?.let { buffer.putSignedShort((it / 25.0).roundToInt(), "measuredInformation.heightFeet") }
+    value.heightFeet?.let { buffer.putSignedShort(quantize(it, 25.0, "measuredInformation.heightFeet"), "measuredInformation.heightFeet") }
     value.lastMeasuredModeCCode?.let {
-        var raw = encodeSignedBits((it.flightLevel / 0.25).roundToInt(), 14, "measuredInformation.lastMeasuredModeCCode.flightLevel")
+        var raw = encodeSignedBits(quantize(it.flightLevel, 0.25, "measuredInformation.lastMeasuredModeCCode.flightLevel"), 14, "measuredInformation.lastMeasuredModeCCode.flightLevel")
         if (!it.validated) raw = raw or 0x8000
         if (it.garbled) raw = raw or 0x4000
         buffer.putShort(raw.toShort())
@@ -936,7 +979,7 @@ internal fun Cat062CodecSupport.writeMeteorologicalData(buffer: ByteBuffer, valu
     if (value.turbulenceCode != null) present += 4
     writeCompoundIndicator(buffer, present)
     value.windSpeedKnots?.let { buffer.putUnsignedShort(it, "meteorologicalData.windSpeedKnots") }
-    value.windDirectionDegrees?.let { buffer.putUnsignedShort((it / (360.0 / 65536.0)).roundToInt(), "meteorologicalData.windDirectionDegrees") }
-    value.temperatureCelsius?.let { buffer.putSignedShort((it / 0.25).roundToInt(), "meteorologicalData.temperatureCelsius") }
+    value.windDirectionDegrees?.let { buffer.putUnsignedShort(quantize(it, 360.0 / 65536.0, "meteorologicalData.windDirectionDegrees"), "meteorologicalData.windDirectionDegrees") }
+    value.temperatureCelsius?.let { buffer.putSignedShort(quantize(it, 0.25, "meteorologicalData.temperatureCelsius"), "meteorologicalData.temperatureCelsius") }
     value.turbulenceCode?.let { buffer.putUnsignedByte(it, "meteorologicalData.turbulenceCode") }
 }
