@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes how the current `asterix-cat062` codebase is organized,
+This document describes how the current `asterix-kotlin` codebase is organized,
 how data flows through it, and where to make changes when extending the codec.
 
 ## Scope

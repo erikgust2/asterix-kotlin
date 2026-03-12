@@ -1,4 +1,4 @@
-# asterix-cat062
+# asterix-kotlin
 
 Kotlin/JVM codec for ASTERIX CAT062 System Track Data.
 
@@ -83,5 +83,5 @@ framework for multiple categories.
 ## Coordinates
 
 - Group ID: `io.github.erikgust2`
-- Artifact ID: `asterix-cat062`
+- Artifact ID: `asterix-kotlin`
 - Version: `0.1.0-SNAPSHOT`
