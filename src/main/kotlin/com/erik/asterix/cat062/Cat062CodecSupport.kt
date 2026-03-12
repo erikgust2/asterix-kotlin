@@ -46,6 +46,7 @@ internal fun Cat062CodecSupport.readRecord(buffer: ByteBuffer): Cat062Record {
 }
 
 internal fun Cat062CodecSupport.writeRecord(buffer: ByteBuffer, record: Cat062Record) {
+    requireMandatoryItems(record)
     val frns = presentFrns(record)
     writeFspec(buffer, frns)
     frns.forEach { frn ->
@@ -81,6 +82,13 @@ internal fun Cat062CodecSupport.writeRecord(buffer: ByteBuffer, record: Cat062Re
             35 -> writeLengthPrefixedField(buffer, record.specialPurposeField!!)
         }
     }
+}
+
+private fun requireMandatoryItems(record: Cat062Record) {
+    require(record.dataSourceIdentifier != null) { "CAT062 record missing mandatory I062/010 dataSourceIdentifier" }
+    require(record.trackNumber != null) { "CAT062 record missing mandatory I062/040 trackNumber" }
+    require(record.timeOfTrackInformationSeconds != null) { "CAT062 record missing mandatory I062/070 timeOfTrackInformationSeconds" }
+    require(record.trackStatus != null) { "CAT062 record missing mandatory I062/080 trackStatus" }
 }
 
 private fun Cat062CodecSupport.presentFrns(record: Cat062Record): List<Int> = buildList {

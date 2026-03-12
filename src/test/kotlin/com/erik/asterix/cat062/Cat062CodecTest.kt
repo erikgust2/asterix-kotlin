@@ -5,6 +5,7 @@ import org.junit.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -13,10 +14,32 @@ class Cat062CodecTest {
 
     @Test
     fun usesCat062V115FrnNumbersInFspec() {
-        val bytes = writeRecord(Cat062Record(serviceIdentification = 4))
+        val bytes = writeRecord(
+            Cat062Record(
+                dataSourceIdentifier = DataSourceIdentifier(1, 2),
+                serviceIdentification = 4,
+                trackNumber = 42,
+                timeOfTrackInformationSeconds = 0.0,
+                trackStatus = TrackStatus(),
+            ),
+        )
 
-        assertEquals(0x20, bytes[0].toUnsignedInt())
-        assertEquals(0x04, bytes[1].toUnsignedInt())
+        assertEquals(0xB1, bytes[0].toUnsignedInt())
+        assertEquals(0x0C, bytes[1].toUnsignedInt())
+    }
+
+    @Test
+    fun writeRecordRequiresMandatoryCat062Items() {
+        val buffer = ByteBuffer.allocate(64)
+
+        val error = assertFailsWith<IllegalArgumentException> {
+            Cat062Codec.writeRecord(
+                buffer,
+                Cat062Record(serviceIdentification = 4),
+            )
+        }
+
+        assertEquals("CAT062 record missing mandatory I062/010 dataSourceIdentifier", error.message)
     }
 
     @Test

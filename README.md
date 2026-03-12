@@ -25,19 +25,30 @@ Example shape:
 
 ```kotlin
 import com.erik.asterix.cat062.Cat062Codec
+import com.erik.asterix.cat062.DataSourceIdentifier
 import com.erik.asterix.cat062.Cat062Record
+import com.erik.asterix.cat062.TrackStatus
 import java.nio.ByteBuffer
 
 val buffer = ByteBuffer.allocate(1024)
 
 Cat062Codec.writeRecord(
     buffer,
-    Cat062Record(serviceIdentification = 4),
+    Cat062Record(
+        dataSourceIdentifier = DataSourceIdentifier(1, 2),
+        serviceIdentification = 4,
+        trackNumber = 42,
+        timeOfTrackInformationSeconds = 12_345.0,
+        trackStatus = TrackStatus(),
+    ),
 )
 
 buffer.flip()
 val decoded = Cat062Codec.readRecord(buffer)
 ```
+
+`writeRecord` enforces the CAT062 mandatory items: `I062/010`, `I062/040`,
+`I062/070`, and `I062/080`.
 
 ## Project Layout
 
