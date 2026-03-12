@@ -1,4 +1,4 @@
-package com.erik.asterix.cat062
+package io.github.erikgust2.asterix.cat062
 
 data class IfpsFlightId(
     val typeCode: Int,
