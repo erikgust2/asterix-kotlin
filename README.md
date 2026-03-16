@@ -25,6 +25,18 @@ To build the jar as well:
 mvn package
 ```
 
+To run the full local verification path used by CI:
+
+```bash
+mvn verify
+```
+
+To auto-format the Kotlin sources before committing:
+
+```bash
+mvn spotless:apply
+```
+
 ## API Overview
 
 The main entry point is `Cat062Codec`.
