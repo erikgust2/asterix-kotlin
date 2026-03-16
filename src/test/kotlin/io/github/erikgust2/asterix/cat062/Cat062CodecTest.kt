@@ -329,6 +329,74 @@ class Cat062CodecTest {
     }
 
     @Test
+    fun fixedWidthIntegerEncodersAcceptBoundaryValues() {
+        val unsignedByteBuffer = ByteBuffer.allocate(2)
+        unsignedByteBuffer.putUnsignedByte(0x00, "test.unsignedByte")
+        unsignedByteBuffer.putUnsignedByte(0xFF, "test.unsignedByte")
+        assertContentEquals(byteArrayOf(0x00, 0xFF.toByte()), unsignedByteBuffer.toByteArray())
+
+        val signedByteBuffer = ByteBuffer.allocate(2)
+        signedByteBuffer.putSignedByte(Byte.MIN_VALUE.toInt(), "test.signedByte")
+        signedByteBuffer.putSignedByte(Byte.MAX_VALUE.toInt(), "test.signedByte")
+        assertContentEquals(byteArrayOf(0x80.toByte(), 0x7F), signedByteBuffer.toByteArray())
+
+        val unsignedShortBuffer = ByteBuffer.allocate(4)
+        unsignedShortBuffer.putUnsignedShort(0x0000, "test.unsignedShort")
+        unsignedShortBuffer.putUnsignedShort(0xFFFF, "test.unsignedShort")
+        assertContentEquals(byteArrayOf(0x00, 0x00, 0xFF.toByte(), 0xFF.toByte()), unsignedShortBuffer.toByteArray())
+
+        val signedShortBuffer = ByteBuffer.allocate(4)
+        signedShortBuffer.putSignedShort(Short.MIN_VALUE.toInt(), "test.signedShort")
+        signedShortBuffer.putSignedShort(Short.MAX_VALUE.toInt(), "test.signedShort")
+        assertContentEquals(byteArrayOf(0x80.toByte(), 0x00, 0x7F, 0xFF.toByte()), signedShortBuffer.toByteArray())
+
+        val unsigned24Buffer = ByteBuffer.allocate(6)
+        support.writeUnsignedInt24(unsigned24Buffer, 0x000000, "test.unsigned24")
+        support.writeUnsignedInt24(unsigned24Buffer, 0xFFFFFF, "test.unsigned24")
+        assertContentEquals(
+            byteArrayOf(0x00, 0x00, 0x00, 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte()),
+            unsigned24Buffer.toByteArray(),
+        )
+
+        val unsigned56Buffer = ByteBuffer.allocate(14)
+        support.writeUnsignedInt56(unsigned56Buffer, 0x00000000000000, "test.unsigned56")
+        support.writeUnsignedInt56(unsigned56Buffer, 0x00FFFFFFFFFFFFFF, "test.unsigned56")
+        assertContentEquals(
+            byteArrayOf(
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0xFF.toByte(),
+                0xFF.toByte(),
+                0xFF.toByte(),
+                0xFF.toByte(),
+                0xFF.toByte(),
+                0xFF.toByte(),
+                0xFF.toByte(),
+            ),
+            unsigned56Buffer.toByteArray(),
+        )
+    }
+
+    @Test
+    fun writeCartesianPositionAcceptsSigned24Boundaries() {
+        val buffer = ByteBuffer.allocate(6)
+        support.writeCartesianPosition(
+            buffer,
+            CartesianPosition(xMeters = -4_194_304.0, yMeters = 4_194_303.5),
+        )
+
+        buffer.flip()
+        val decoded = support.readCartesianPosition(buffer)
+        assertEquals(-4_194_304.0, decoded.xMeters, 0.001)
+        assertEquals(4_194_303.5, decoded.yMeters, 0.001)
+    }
+
+    @Test
     fun writeCartesianPositionRejects24BitOverflow() {
         assertRangeFailure("calculatedTrackPositionCartesian.xMeters out of range") {
             support.writeCartesianPosition(
@@ -354,6 +422,61 @@ class Cat062CodecTest {
     }
 
     @Test
+    fun writeAircraftDerivedDataEnforcesSpecBoundsForSelectedAltitudeAndTrueAirspeed() {
+        val buffer = ByteBuffer.allocate(8)
+        support.writeAircraftDerivedData(
+            buffer,
+            AircraftDerivedData(
+                trueAirspeedKnots = 2046,
+                selectedAltitude = SelectedAltitude(
+                    sourceAvailable = true,
+                    sourceCode = 2,
+                    flightLevel = 1000.0,
+                ),
+                finalStateSelectedAltitude = FinalStateSelectedAltitude(
+                    managedVerticalModeActive = true,
+                    altitudeHoldActive = true,
+                    approachModeActive = false,
+                    flightLevel = -13.0,
+                ),
+            ),
+        )
+        assertTrue(buffer.position() > 0)
+
+        assertRangeFailure("aircraftDerivedData.trueAirspeedKnots out of range") {
+            support.writeAircraftDerivedData(
+                ByteBuffer.allocate(8),
+                AircraftDerivedData(trueAirspeedKnots = 2047),
+            )
+        }
+        assertRangeFailure("aircraftDerivedData.selectedAltitude.flightLevel out of range") {
+            support.writeAircraftDerivedData(
+                ByteBuffer.allocate(8),
+                AircraftDerivedData(
+                    selectedAltitude = SelectedAltitude(
+                        sourceAvailable = true,
+                        sourceCode = 1,
+                        flightLevel = 1000.25,
+                    ),
+                ),
+            )
+        }
+        assertRangeFailure("aircraftDerivedData.finalStateSelectedAltitude.flightLevel out of range") {
+            support.writeAircraftDerivedData(
+                ByteBuffer.allocate(8),
+                AircraftDerivedData(
+                    finalStateSelectedAltitude = FinalStateSelectedAltitude(
+                        managedVerticalModeActive = false,
+                        altitudeHoldActive = false,
+                        approachModeActive = false,
+                        flightLevel = -13.25,
+                    ),
+                ),
+            )
+        }
+    }
+
+    @Test
     fun writeAircraftDerivedDataRejectsBarometricPressureOverflowIntoReservedBits() {
         assertRangeFailure("aircraftDerivedData.barometricPressureSettingHpa out of range") {
             support.writeAircraftDerivedData(
@@ -364,11 +487,53 @@ class Cat062CodecTest {
     }
 
     @Test
+    fun writeAircraftDerivedDataEnforcesTrackAngleRateSpecRange() {
+        val buffer = ByteBuffer.allocate(8)
+        support.writeAircraftDerivedData(
+            buffer,
+            AircraftDerivedData(trackAngleRateDegreesPerSecond = 15.0),
+        )
+        assertTrue(buffer.position() > 0)
+
+        assertRangeFailure("aircraftDerivedData.trackAngleRateDegreesPerSecond out of range") {
+            support.writeAircraftDerivedData(
+                ByteBuffer.allocate(8),
+                AircraftDerivedData(trackAngleRateDegreesPerSecond = 15.25),
+            )
+        }
+    }
+
+    @Test
     fun writeAircraftDerivedDataRejectsAcasResolutionOverflow() {
-        assertRangeFailure("Unsigned 56-bit value out of range") {
+        assertRangeFailure("aircraftDerivedData.acasResolutionAdvisoryReport out of range") {
             support.writeAircraftDerivedData(
                 ByteBuffer.allocate(16),
                 AircraftDerivedData(acasResolutionAdvisoryReport = AcasResolutionAdvisory(1L shl 56)),
+            )
+        }
+    }
+
+    @Test
+    fun writeAircraftDerivedDataRejectsTargetAddress24BitOverflowWithFieldName() {
+        assertRangeFailure("aircraftDerivedData.targetAddress out of range") {
+            support.writeAircraftDerivedData(
+                ByteBuffer.allocate(8),
+                AircraftDerivedData(targetAddress = 1 shl 24),
+            )
+        }
+    }
+
+    @Test
+    fun writeRecordRejectsTimeOfTrackInformation24BitOverflowWithFieldName() {
+        assertRangeFailure("timeOfTrackInformationSeconds out of range") {
+            writeRecord(
+                Cat062Record(
+                    dataSourceIdentifier = DataSourceIdentifier(1, 2),
+                    timeOfTrackInformationSeconds = 131_072.0,
+                    calculatedTrackPositionWgs84 = Wgs84Position(0.0, 0.0),
+                    trackNumber = 1,
+                    trackStatus = TrackStatus(),
+                ),
             )
         }
     }
@@ -391,6 +556,19 @@ class Cat062CodecTest {
                 TargetIdentification(
                     source = TargetIdentificationSource.CALLSIGN_OR_REGISTRATION_FROM_TRANSPONDER,
                     value = "ABCDEFGHJ",
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun writeTargetIdentificationRejectsNormalizationExpansion() {
+        assertRangeFailure("Callsign too long for 8 characters after normalization") {
+            support.writeTargetIdentification(
+                ByteBuffer.allocate(6),
+                TargetIdentification(
+                    source = TargetIdentificationSource.CALLSIGN_OR_REGISTRATION_FROM_TRANSPONDER,
+                    value = "ABCDEFG\u00DF",
                 ),
             )
         }

@@ -272,6 +272,7 @@ internal fun Cat062CodecSupport.decodePackedCallsign(bytes: ByteArray): String {
 private fun normaliseCallsign(value: String, length: Int): String {
     require(value.length <= length) { "Callsign too long for $length characters: ${value.length}" }
     val normalised = value.uppercase()
+    require(normalised.length <= length) { "Callsign too long for $length characters after normalization: ${normalised.length}" }
     require(normalised.all { it == ' ' || it in 'A'..'Z' || it in '0'..'9' }) {
         "Callsign contains unsupported characters: $value"
     }
@@ -300,8 +301,8 @@ internal fun Cat062CodecSupport.readUnsignedInt24(buffer: ByteBuffer): Int =
 
 private fun Cat062CodecSupport.readSignedInt24(buffer: ByteBuffer): Int = signExtend(readUnsignedInt24(buffer), 24)
 
-internal fun Cat062CodecSupport.writeUnsignedInt24(buffer: ByteBuffer, value: Int) {
-    require(value in 0..0xFFFFFF) { "Unsigned 24-bit value out of range: $value" }
+internal fun Cat062CodecSupport.writeUnsignedInt24(buffer: ByteBuffer, value: Int, fieldName: String) {
+    require(value in 0..0xFFFFFF) { "$fieldName out of range: $value" }
     buffer.put(((value ushr 16) and 0xFF).toByte())
     buffer.put(((value ushr 8) and 0xFF).toByte())
     buffer.put((value and 0xFF).toByte())
@@ -309,7 +310,7 @@ internal fun Cat062CodecSupport.writeUnsignedInt24(buffer: ByteBuffer, value: In
 
 private fun Cat062CodecSupport.writeSignedInt24(buffer: ByteBuffer, value: Int, fieldName: String) {
     require(value in -0x800000..0x7FFFFF) { "$fieldName out of range: $value" }
-    writeUnsignedInt24(buffer, value and 0xFFFFFF)
+    writeUnsignedInt24(buffer, value and 0xFFFFFF, fieldName)
 }
 
 private fun Cat062CodecSupport.readSignedInt32(buffer: ByteBuffer): Int = buffer.int
@@ -322,8 +323,8 @@ internal fun Cat062CodecSupport.readUnsignedInt56(buffer: ByteBuffer): Long {
     return value
 }
 
-internal fun Cat062CodecSupport.writeUnsignedInt56(buffer: ByteBuffer, value: Long) {
-    require(value in 0..0x00FFFFFFFFFFFFFFL) { "Unsigned 56-bit value out of range: $value" }
+internal fun Cat062CodecSupport.writeUnsignedInt56(buffer: ByteBuffer, value: Long, fieldName: String) {
+    require(value in 0..0x00FFFFFFFFFFFFFFL) { "$fieldName out of range: $value" }
     for (shift in 48 downTo 0 step 8) {
         buffer.put(((value shr shift) and 0xFF).toByte())
     }

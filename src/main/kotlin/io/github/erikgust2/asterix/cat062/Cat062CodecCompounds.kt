@@ -197,7 +197,7 @@ internal fun Cat062CodecSupport.writeAircraftDerivedData(buffer: ByteBuffer, val
     if (value.barometricPressureSettingHpa != null) present += 28
     writeCompoundIndicator(buffer, present)
 
-    value.targetAddress?.let { writeUnsignedInt24(buffer, it) }
+    value.targetAddress?.let { writeUnsignedInt24(buffer, it, "aircraftDerivedData.targetAddress") }
     value.targetIdentification?.let { encodePackedCallsign(buffer, it) }
     value.magneticHeadingDegrees?.let { buffer.putUnsignedShort(quantize(it, 360.0 / 65536.0, "aircraftDerivedData.magneticHeadingDegrees"), "aircraftDerivedData.magneticHeadingDegrees") }
     value.indicatedAirspeed?.let {
@@ -214,13 +214,13 @@ internal fun Cat062CodecSupport.writeAircraftDerivedData(buffer: ByteBuffer, val
     }
     value.selectedAltitude?.let {
         require(it.sourceCode in 0..0x03) { "aircraftDerivedData.selectedAltitude.sourceCode out of range: ${it.sourceCode}" }
-        require(it.flightLevel in -52.0..4000.0) { "aircraftDerivedData.selectedAltitude.flightLevel out of range: ${it.flightLevel}" }
+        require(it.flightLevel in -13.0..1000.0) { "aircraftDerivedData.selectedAltitude.flightLevel out of range: ${it.flightLevel}" }
         var raw = (if (it.sourceAvailable) 0x8000 else 0) or ((it.sourceCode and 0x03) shl 13)
         raw = raw or encodeSignedBits(quantize(it.flightLevel, 0.25, "aircraftDerivedData.selectedAltitude.flightLevel"), 13, "aircraftDerivedData.selectedAltitude.flightLevel")
         buffer.putShort(raw.toShort())
     }
     value.finalStateSelectedAltitude?.let {
-        require(it.flightLevel in -52.0..4000.0) { "aircraftDerivedData.finalStateSelectedAltitude.flightLevel out of range: ${it.flightLevel}" }
+        require(it.flightLevel in -13.0..1000.0) { "aircraftDerivedData.finalStateSelectedAltitude.flightLevel out of range: ${it.flightLevel}" }
         var raw = 0
         if (it.managedVerticalModeActive) raw = raw or 0x8000
         if (it.altitudeHoldActive) raw = raw or 0x4000
@@ -260,7 +260,7 @@ internal fun Cat062CodecSupport.writeAircraftDerivedData(buffer: ByteBuffer, val
             (if (it.gbs) 0x0200 else 0) or (it.stat and 0x07)
         buffer.putUnsignedShort(raw, "aircraftDerivedData.adsbStatus")
     }
-    value.acasResolutionAdvisoryReport?.let { writeUnsignedInt56(buffer, it.raw) }
+    value.acasResolutionAdvisoryReport?.let { writeUnsignedInt56(buffer, it.raw, "aircraftDerivedData.acasResolutionAdvisoryReport") }
     value.barometricVerticalRateFeetPerMinute?.let {
         buffer.putUnsignedShort(encodeSignedBits(quantize(it, 6.25, "aircraftDerivedData.barometricVerticalRateFeetPerMinute"), 15, "aircraftDerivedData.barometricVerticalRateFeetPerMinute"), "aircraftDerivedData.barometricVerticalRateFeetPerMinute")
     }
@@ -273,12 +273,13 @@ internal fun Cat062CodecSupport.writeAircraftDerivedData(buffer: ByteBuffer, val
     }
     value.trackAngleRateDegreesPerSecond?.let {
         require(it in -15.0..15.0) { "aircraftDerivedData.trackAngleRateDegreesPerSecond out of range: $it" }
+        val quantizedRate = quantize(it, 0.25, "aircraftDerivedData.trackAngleRateDegreesPerSecond")
         val turnIndicator = when {
-            it < 0.0 -> 0x4000
-            it > 0.0 -> 0x8000
+            quantizedRate < 0 -> 0x4000
+            quantizedRate > 0 -> 0x8000
             else -> 0xC000
         }
-        val encodedRate = encodeSignedBits(quantize(it, 0.25, "aircraftDerivedData.trackAngleRateDegreesPerSecond"), 7, "aircraftDerivedData.trackAngleRateDegreesPerSecond") shl 1
+        val encodedRate = encodeSignedBits(quantizedRate, 7, "aircraftDerivedData.trackAngleRateDegreesPerSecond") shl 1
         buffer.putUnsignedShort(turnIndicator or encodedRate, "aircraftDerivedData.trackAngleRateDegreesPerSecond")
     }
     value.trackAngleDegrees?.let { buffer.putUnsignedShort(quantize(it, 360.0 / 65536.0, "aircraftDerivedData.trackAngleDegrees"), "aircraftDerivedData.trackAngleDegrees") }

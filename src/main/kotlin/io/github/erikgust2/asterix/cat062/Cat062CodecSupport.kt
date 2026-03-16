@@ -51,7 +51,7 @@ internal fun Cat062CodecSupport.writeRecord(buffer: ByteBuffer, record: Cat062Re
         when (frn) {
             1 -> writeDataSourceIdentifier(buffer, record.dataSourceIdentifier!!)
             3 -> buffer.putUnsignedByte(record.serviceIdentification!!, "serviceIdentification")
-            4 -> writeUnsignedInt24(buffer, quantize(record.timeOfTrackInformationSeconds!!, 1.0 / 128.0, "timeOfTrackInformationSeconds"))
+            4 -> writeUnsignedInt24(buffer, quantize(record.timeOfTrackInformationSeconds!!, 1.0 / 128.0, "timeOfTrackInformationSeconds"), "timeOfTrackInformationSeconds")
             5 -> writeWgs84Position(buffer, record.calculatedTrackPositionWgs84!!)
             6 -> writeCartesianPosition(buffer, record.calculatedTrackPositionCartesian!!)
             7 -> writeCartesianVelocity(buffer, record.calculatedTrackVelocityCartesian!!)
