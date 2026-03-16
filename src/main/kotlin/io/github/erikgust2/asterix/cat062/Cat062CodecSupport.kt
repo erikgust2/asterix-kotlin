@@ -1,8 +1,6 @@
 package io.github.erikgust2.asterix.cat062
 
 import java.nio.ByteBuffer
-import kotlin.math.roundToInt
-
 internal class Cat062CodecSupport
 
 internal fun Cat062CodecSupport.readRecord(buffer: ByteBuffer): Cat062Record {
@@ -53,7 +51,7 @@ internal fun Cat062CodecSupport.writeRecord(buffer: ByteBuffer, record: Cat062Re
         when (frn) {
             1 -> writeDataSourceIdentifier(buffer, record.dataSourceIdentifier!!)
             3 -> buffer.putUnsignedByte(record.serviceIdentification!!, "serviceIdentification")
-            4 -> writeUnsignedInt24(buffer, (record.timeOfTrackInformationSeconds!! * 128.0).roundToInt())
+            4 -> writeUnsignedInt24(buffer, quantize(record.timeOfTrackInformationSeconds!!, 1.0 / 128.0, "timeOfTrackInformationSeconds"), "timeOfTrackInformationSeconds")
             5 -> writeWgs84Position(buffer, record.calculatedTrackPositionWgs84!!)
             6 -> writeCartesianPosition(buffer, record.calculatedTrackPositionCartesian!!)
             7 -> writeCartesianVelocity(buffer, record.calculatedTrackVelocityCartesian!!)
@@ -67,9 +65,9 @@ internal fun Cat062CodecSupport.writeRecord(buffer: ByteBuffer, record: Cat062Re
             15 -> writeModeOfMovement(buffer, record.modeOfMovement!!)
             16 -> writeTrackDataAges(buffer, record.trackDataAges!!)
             17 -> writeFlightLevelMeasurement(buffer, record.measuredFlightLevel!!)
-            18 -> buffer.putSignedShort((record.calculatedTrackGeometricAltitudeFeet!! / 6.25).roundToInt(), "calculatedTrackGeometricAltitudeFeet")
+            18 -> buffer.putSignedShort(quantize(record.calculatedTrackGeometricAltitudeFeet!!, 6.25, "calculatedTrackGeometricAltitudeFeet"), "calculatedTrackGeometricAltitudeFeet")
             19 -> writeBarometricAltitude(buffer, record.calculatedTrackBarometricAltitude!!)
-            20 -> buffer.putSignedShort((record.rateOfClimbDescentFeetPerMinute!! / 6.25).roundToInt(), "rateOfClimbDescentFeetPerMinute")
+            20 -> buffer.putSignedShort(quantize(record.rateOfClimbDescentFeetPerMinute!!, 6.25, "rateOfClimbDescentFeetPerMinute"), "rateOfClimbDescentFeetPerMinute")
             21 -> writeFlightPlanRelatedData(buffer, record.flightPlanRelatedData!!)
             22 -> writeTargetSizeAndOrientation(buffer, record.targetSizeAndOrientation!!)
             23 -> buffer.putUnsignedByte(record.vehicleFleetIdentification!!.code, "vehicleFleetIdentification.code")
