@@ -6,7 +6,10 @@ import kotlin.math.round
 internal fun Cat062CodecSupport.readDataSourceIdentifier(buffer: ByteBuffer): DataSourceIdentifier =
     DataSourceIdentifier(buffer.get().toUnsignedInt(), buffer.get().toUnsignedInt())
 
-internal fun Cat062CodecSupport.writeDataSourceIdentifier(buffer: ByteBuffer, value: DataSourceIdentifier) {
+internal fun Cat062CodecSupport.writeDataSourceIdentifier(
+    buffer: ByteBuffer,
+    value: DataSourceIdentifier,
+) {
     buffer.putUnsignedByte(value.sac, "dataSourceIdentifier.sac")
     buffer.putUnsignedByte(value.sic, "dataSourceIdentifier.sic")
 }
@@ -17,7 +20,10 @@ internal fun Cat062CodecSupport.readWgs84Position(buffer: ByteBuffer): Wgs84Posi
         longitudeDegrees = readSignedInt32(buffer) * WGS84_RESOLUTION,
     )
 
-internal fun Cat062CodecSupport.writeWgs84Position(buffer: ByteBuffer, value: Wgs84Position) {
+internal fun Cat062CodecSupport.writeWgs84Position(
+    buffer: ByteBuffer,
+    value: Wgs84Position,
+) {
     buffer.putInt(quantize(value.latitudeDegrees, WGS84_RESOLUTION, "calculatedTrackPositionWgs84.latitudeDegrees"))
     buffer.putInt(quantize(value.longitudeDegrees, WGS84_RESOLUTION, "calculatedTrackPositionWgs84.longitudeDegrees"))
 }
@@ -28,9 +34,20 @@ internal fun Cat062CodecSupport.readCartesianPosition(buffer: ByteBuffer): Carte
         yMeters = readSignedInt24(buffer) * 0.5,
     )
 
-internal fun Cat062CodecSupport.writeCartesianPosition(buffer: ByteBuffer, value: CartesianPosition) {
-    writeSignedInt24(buffer, quantize(value.xMeters, 0.5, "calculatedTrackPositionCartesian.xMeters"), "calculatedTrackPositionCartesian.xMeters")
-    writeSignedInt24(buffer, quantize(value.yMeters, 0.5, "calculatedTrackPositionCartesian.yMeters"), "calculatedTrackPositionCartesian.yMeters")
+internal fun Cat062CodecSupport.writeCartesianPosition(
+    buffer: ByteBuffer,
+    value: CartesianPosition,
+) {
+    writeSignedInt24(
+        buffer,
+        quantize(value.xMeters, 0.5, "calculatedTrackPositionCartesian.xMeters"),
+        "calculatedTrackPositionCartesian.xMeters",
+    )
+    writeSignedInt24(
+        buffer,
+        quantize(value.yMeters, 0.5, "calculatedTrackPositionCartesian.yMeters"),
+        "calculatedTrackPositionCartesian.yMeters",
+    )
 }
 
 internal fun Cat062CodecSupport.readCartesianVelocity(buffer: ByteBuffer): CartesianVelocity =
@@ -39,9 +56,18 @@ internal fun Cat062CodecSupport.readCartesianVelocity(buffer: ByteBuffer): Carte
         yMetersPerSecond = buffer.short.toDouble() * 0.25,
     )
 
-internal fun Cat062CodecSupport.writeCartesianVelocity(buffer: ByteBuffer, value: CartesianVelocity) {
-    buffer.putSignedShort(quantize(value.xMetersPerSecond, 0.25, "calculatedTrackVelocityCartesian.xMetersPerSecond"), "calculatedTrackVelocityCartesian.xMetersPerSecond")
-    buffer.putSignedShort(quantize(value.yMetersPerSecond, 0.25, "calculatedTrackVelocityCartesian.yMetersPerSecond"), "calculatedTrackVelocityCartesian.yMetersPerSecond")
+internal fun Cat062CodecSupport.writeCartesianVelocity(
+    buffer: ByteBuffer,
+    value: CartesianVelocity,
+) {
+    buffer.putSignedShort(
+        quantize(value.xMetersPerSecond, 0.25, "calculatedTrackVelocityCartesian.xMetersPerSecond"),
+        "calculatedTrackVelocityCartesian.xMetersPerSecond",
+    )
+    buffer.putSignedShort(
+        quantize(value.yMetersPerSecond, 0.25, "calculatedTrackVelocityCartesian.yMetersPerSecond"),
+        "calculatedTrackVelocityCartesian.yMetersPerSecond",
+    )
 }
 
 internal fun Cat062CodecSupport.readCartesianAcceleration(buffer: ByteBuffer): CartesianAcceleration =
@@ -50,9 +76,18 @@ internal fun Cat062CodecSupport.readCartesianAcceleration(buffer: ByteBuffer): C
         yMetersPerSecondSquared = buffer.get().toDouble() * 0.25,
     )
 
-internal fun Cat062CodecSupport.writeCartesianAcceleration(buffer: ByteBuffer, value: CartesianAcceleration) {
-    buffer.putSignedByte(quantize(value.xMetersPerSecondSquared, 0.25, "calculatedAccelerationCartesian.xMetersPerSecondSquared"), "calculatedAccelerationCartesian.xMetersPerSecondSquared")
-    buffer.putSignedByte(quantize(value.yMetersPerSecondSquared, 0.25, "calculatedAccelerationCartesian.yMetersPerSecondSquared"), "calculatedAccelerationCartesian.yMetersPerSecondSquared")
+internal fun Cat062CodecSupport.writeCartesianAcceleration(
+    buffer: ByteBuffer,
+    value: CartesianAcceleration,
+) {
+    buffer.putSignedByte(
+        quantize(value.xMetersPerSecondSquared, 0.25, "calculatedAccelerationCartesian.xMetersPerSecondSquared"),
+        "calculatedAccelerationCartesian.xMetersPerSecondSquared",
+    )
+    buffer.putSignedByte(
+        quantize(value.yMetersPerSecondSquared, 0.25, "calculatedAccelerationCartesian.yMetersPerSecondSquared"),
+        "calculatedAccelerationCartesian.yMetersPerSecondSquared",
+    )
 }
 
 internal fun Cat062CodecSupport.readMode3ACode(buffer: ByteBuffer): Mode3ACode {
@@ -64,7 +99,10 @@ internal fun Cat062CodecSupport.readMode3ACode(buffer: ByteBuffer): Mode3ACode {
     )
 }
 
-internal fun Cat062CodecSupport.writeMode3ACode(buffer: ByteBuffer, value: Mode3ACode) {
+internal fun Cat062CodecSupport.writeMode3ACode(
+    buffer: ByteBuffer,
+    value: Mode3ACode,
+) {
     require(value.code in 0..0x0FFF) { "trackMode3aCode.code out of range: ${value.code}" }
     var b1 = (value.code shr 8) and 0x0F
     if (value.codeChanged) b1 = b1 or 0x20
@@ -89,7 +127,10 @@ internal fun Cat062CodecSupport.readTargetIdentification(buffer: ByteBuffer): Ta
     )
 }
 
-internal fun Cat062CodecSupport.writeTargetIdentification(buffer: ByteBuffer, value: TargetIdentification) {
+internal fun Cat062CodecSupport.writeTargetIdentification(
+    buffer: ByteBuffer,
+    value: TargetIdentification,
+) {
     val chars = normaliseCallsign(value.value, 8)
     var first = value.source.code shl 6
     first = first or encodeSixBitChar(chars[0])
@@ -110,7 +151,10 @@ internal fun Cat062CodecSupport.readFlightLevelMeasurement(buffer: ByteBuffer): 
     )
 }
 
-internal fun Cat062CodecSupport.writeFlightLevelMeasurement(buffer: ByteBuffer, value: FlightLevelMeasurement) {
+internal fun Cat062CodecSupport.writeFlightLevelMeasurement(
+    buffer: ByteBuffer,
+    value: FlightLevelMeasurement,
+) {
     buffer.putSignedShort(quantize(value.flightLevel, 0.25, "measuredFlightLevel.flightLevel"), "measuredFlightLevel.flightLevel")
 }
 
@@ -122,8 +166,16 @@ internal fun Cat062CodecSupport.readBarometricAltitude(buffer: ByteBuffer): Baro
     )
 }
 
-internal fun Cat062CodecSupport.writeBarometricAltitude(buffer: ByteBuffer, value: BarometricAltitude) {
-    var raw = encodeSignedBits(quantize(value.altitudeFeet, 25.0, "calculatedTrackBarometricAltitude.altitudeFeet"), 15, "calculatedTrackBarometricAltitude.altitudeFeet")
+internal fun Cat062CodecSupport.writeBarometricAltitude(
+    buffer: ByteBuffer,
+    value: BarometricAltitude,
+) {
+    var raw =
+        encodeSignedBits(
+            quantize(value.altitudeFeet, 25.0, "calculatedTrackBarometricAltitude.altitudeFeet"),
+            15,
+            "calculatedTrackBarometricAltitude.altitudeFeet",
+        )
     if (value.qnhCorrectionApplied) raw = raw or 0x8000
     buffer.putShort(raw.toShort())
 }
@@ -143,13 +195,22 @@ internal fun Cat062CodecSupport.readTargetSizeAndOrientation(buffer: ByteBuffer)
     return TargetSizeAndOrientation(lengthMeters, orientationDegrees, widthMeters)
 }
 
-internal fun Cat062CodecSupport.writeTargetSizeAndOrientation(buffer: ByteBuffer, value: TargetSizeAndOrientation) {
+internal fun Cat062CodecSupport.writeTargetSizeAndOrientation(
+    buffer: ByteBuffer,
+    value: TargetSizeAndOrientation,
+) {
     require(value.lengthMeters in 0..0x7F) { "targetSizeAndOrientation.lengthMeters out of range: ${value.lengthMeters}" }
     var octet1 = (value.lengthMeters and 0x7F) shl 1
     if (value.orientationDegrees != null) octet1 = octet1 or 0x01
     buffer.put(octet1.toByte())
     value.orientationDegrees?.let {
-        var octet2 = encodeUnsignedBits(quantize(it, 360.0 / 128.0, "targetSizeAndOrientation.orientationDegrees"), 7, "targetSizeAndOrientation.orientationDegrees") shl 1
+        var octet2 =
+            encodeUnsignedBits(
+                quantize(it, 360.0 / 128.0, "targetSizeAndOrientation.orientationDegrees"),
+                7,
+                "targetSizeAndOrientation.orientationDegrees",
+            ) shl
+                1
         if (value.widthMeters != null) octet2 = octet2 or 0x01
         buffer.put(octet2.toByte())
         value.widthMeters?.let { width ->
@@ -172,7 +233,10 @@ internal fun Cat062CodecSupport.readMode2Code(buffer: ByteBuffer): Mode2Code {
     )
 }
 
-internal fun Cat062CodecSupport.writeMode2Code(buffer: ByteBuffer, value: Mode2Code) {
+internal fun Cat062CodecSupport.writeMode2Code(
+    buffer: ByteBuffer,
+    value: Mode2Code,
+) {
     require(value.code in 0..0x0FFF) { "trackMode2Code.code out of range: ${value.code}" }
     val b1 = (value.code shr 8) and 0x0F
     buffer.put(b1.toByte())
@@ -185,7 +249,10 @@ internal fun Cat062CodecSupport.readComposedTrackNumber(buffer: ByteBuffer): Com
         trackNumber = buffer.short.toUnsignedInt(),
     )
 
-internal fun Cat062CodecSupport.writeComposedTrackNumber(buffer: ByteBuffer, value: ComposedTrackNumber) {
+internal fun Cat062CodecSupport.writeComposedTrackNumber(
+    buffer: ByteBuffer,
+    value: ComposedTrackNumber,
+) {
     buffer.putUnsignedByte(value.systemUnitIdentification, "composedTrackNumber.systemUnitIdentification")
     buffer.putUnsignedShort(value.trackNumber, "composedTrackNumber.trackNumber")
 }
@@ -200,7 +267,10 @@ internal fun Cat062CodecSupport.readCompoundIndicator(buffer: ByteBuffer): IntAr
     return bytes.toIntArray()
 }
 
-internal fun Cat062CodecSupport.writeCompoundIndicator(buffer: ByteBuffer, present: Set<Int>) {
+internal fun Cat062CodecSupport.writeCompoundIndicator(
+    buffer: ByteBuffer,
+    present: Set<Int>,
+) {
     if (present.isEmpty()) {
         buffer.put(0.toByte())
         return
@@ -221,7 +291,10 @@ internal fun Cat062CodecSupport.writeCompoundIndicator(buffer: ByteBuffer, prese
     }
 }
 
-internal fun Cat062CodecSupport.isCompoundSubfieldPresent(indicator: IntArray, subfield: Int): Boolean {
+internal fun Cat062CodecSupport.isCompoundSubfieldPresent(
+    indicator: IntArray,
+    subfield: Int,
+): Boolean {
     val octetIndex = (subfield - 1) / 7
     if (octetIndex >= indicator.size) return false
     val bitIndex = (subfield - 1) % 7
@@ -234,23 +307,35 @@ internal fun Cat062CodecSupport.readLengthPrefixedField(buffer: ByteBuffer): Raw
     return readBytes(buffer, totalLength - 1).toRawBytes()
 }
 
-internal fun Cat062CodecSupport.writeLengthPrefixedField(buffer: ByteBuffer, value: RawBytes) {
+internal fun Cat062CodecSupport.writeLengthPrefixedField(
+    buffer: ByteBuffer,
+    value: RawBytes,
+) {
     require(value.size <= 254) { "Length-prefixed field too large: ${value.size}" }
     buffer.put((value.size + 1).toByte())
     buffer.put(value.unsafeBytes())
 }
 
-internal fun Cat062CodecSupport.readAscii(buffer: ByteBuffer, length: Int): String =
-    buildString(length) { repeat(length) { append(buffer.get().toUnsignedInt().toChar()) } }
+internal fun Cat062CodecSupport.readAscii(
+    buffer: ByteBuffer,
+    length: Int,
+): String = buildString(length) { repeat(length) { append(buffer.get().toUnsignedInt().toChar()) } }
 
-internal fun Cat062CodecSupport.writeAscii(buffer: ByteBuffer, value: String, length: Int) {
+internal fun Cat062CodecSupport.writeAscii(
+    buffer: ByteBuffer,
+    value: String,
+    length: Int,
+) {
     require(value.length <= length) { "ASCII field too long for $length bytes: ${value.length}" }
     require(value.all { it.code <= 0x7F }) { "ASCII field contains non-ASCII characters: $value" }
     val padded = value.padEnd(length, ' ')
     padded.forEach { buffer.put(it.code.toByte()) }
 }
 
-internal fun Cat062CodecSupport.encodePackedCallsign(buffer: ByteBuffer, value: String) {
+internal fun Cat062CodecSupport.encodePackedCallsign(
+    buffer: ByteBuffer,
+    value: String,
+) {
     val chars = normaliseCallsign(value, 8)
     var packed = 0L
     chars.forEach { packed = (packed shl 6) or encodeSixBitChar(it).toLong() }
@@ -269,7 +354,10 @@ internal fun Cat062CodecSupport.decodePackedCallsign(bytes: ByteArray): String {
     }.trim()
 }
 
-private fun normaliseCallsign(value: String, length: Int): String {
+private fun normaliseCallsign(
+    value: String,
+    length: Int,
+): String {
     require(value.length <= length) { "Callsign too long for $length characters: ${value.length}" }
     val normalised = value.uppercase()
     require(normalised.length <= length) { "Callsign too long for $length characters after normalization: ${normalised.length}" }
@@ -279,36 +367,48 @@ private fun normaliseCallsign(value: String, length: Int): String {
     return normalised.padEnd(length, ' ')
 }
 
-private fun sixBitChar(code: Int): Char = when (code) {
-    0 -> ' '
-    in 1..26 -> ('A'.code + code - 1).toChar()
-    in 48..57 -> ('0'.code + code - 48).toChar()
-    else -> ' '
-}
+private fun sixBitChar(code: Int): Char =
+    when (code) {
+        0 -> ' '
+        in 1..26 -> ('A'.code + code - 1).toChar()
+        in 48..57 -> ('0'.code + code - 48).toChar()
+        else -> ' '
+    }
 
-private fun encodeSixBitChar(char: Char): Int = when (char) {
-    ' ' -> 0
-    in 'A'..'Z' -> char.code - 'A'.code + 1
-    in '0'..'9' -> char.code - '0'.code + 48
-    else -> 0
-}
+private fun encodeSixBitChar(char: Char): Int =
+    when (char) {
+        ' ' -> 0
+        in 'A'..'Z' -> char.code - 'A'.code + 1
+        in '0'..'9' -> char.code - '0'.code + 48
+        else -> 0
+    }
 
-internal fun Cat062CodecSupport.readBytes(buffer: ByteBuffer, length: Int): ByteArray =
-    ByteArray(length).also { buffer.get(it) }
+internal fun Cat062CodecSupport.readBytes(
+    buffer: ByteBuffer,
+    length: Int,
+): ByteArray = ByteArray(length).also { buffer.get(it) }
 
 internal fun Cat062CodecSupport.readUnsignedInt24(buffer: ByteBuffer): Int =
     (buffer.get().toUnsignedInt() shl 16) or (buffer.get().toUnsignedInt() shl 8) or buffer.get().toUnsignedInt()
 
 private fun Cat062CodecSupport.readSignedInt24(buffer: ByteBuffer): Int = signExtend(readUnsignedInt24(buffer), 24)
 
-internal fun Cat062CodecSupport.writeUnsignedInt24(buffer: ByteBuffer, value: Int, fieldName: String) {
+internal fun Cat062CodecSupport.writeUnsignedInt24(
+    buffer: ByteBuffer,
+    value: Int,
+    fieldName: String,
+) {
     require(value in 0..0xFFFFFF) { "$fieldName out of range: $value" }
     buffer.put(((value ushr 16) and 0xFF).toByte())
     buffer.put(((value ushr 8) and 0xFF).toByte())
     buffer.put((value and 0xFF).toByte())
 }
 
-private fun Cat062CodecSupport.writeSignedInt24(buffer: ByteBuffer, value: Int, fieldName: String) {
+private fun Cat062CodecSupport.writeSignedInt24(
+    buffer: ByteBuffer,
+    value: Int,
+    fieldName: String,
+) {
     require(value in -0x800000..0x7FFFFF) { "$fieldName out of range: $value" }
     writeUnsignedInt24(buffer, value and 0xFFFFFF, fieldName)
 }
@@ -323,42 +423,66 @@ internal fun Cat062CodecSupport.readUnsignedInt56(buffer: ByteBuffer): Long {
     return value
 }
 
-internal fun Cat062CodecSupport.writeUnsignedInt56(buffer: ByteBuffer, value: Long, fieldName: String) {
+internal fun Cat062CodecSupport.writeUnsignedInt56(
+    buffer: ByteBuffer,
+    value: Long,
+    fieldName: String,
+) {
     require(value in 0..0x00FFFFFFFFFFFFFFL) { "$fieldName out of range: $value" }
     for (shift in 48 downTo 0 step 8) {
         buffer.put(((value shr shift) and 0xFF).toByte())
     }
 }
 
-internal fun signExtend(value: Int, bitWidth: Int): Int {
+internal fun signExtend(
+    value: Int,
+    bitWidth: Int,
+): Int {
     val shift = 32 - bitWidth
     return (value shl shift) shr shift
 }
 
 internal fun Byte.toUnsignedInt(): Int = toInt() and 0xFF
+
 internal fun Short.toUnsignedInt(): Int = toInt() and 0xFFFF
 
-internal fun ByteBuffer.putUnsignedByte(value: Int, fieldName: String) {
+internal fun ByteBuffer.putUnsignedByte(
+    value: Int,
+    fieldName: String,
+) {
     require(value in 0..0xFF) { "$fieldName out of range: $value" }
     put(value.toByte())
 }
 
-internal fun ByteBuffer.putSignedByte(value: Int, fieldName: String) {
+internal fun ByteBuffer.putSignedByte(
+    value: Int,
+    fieldName: String,
+) {
     require(value in Byte.MIN_VALUE..Byte.MAX_VALUE) { "$fieldName out of range: $value" }
     put(value.toByte())
 }
 
-internal fun ByteBuffer.putUnsignedShort(value: Int, fieldName: String) {
+internal fun ByteBuffer.putUnsignedShort(
+    value: Int,
+    fieldName: String,
+) {
     require(value in 0..0xFFFF) { "$fieldName out of range: $value" }
     putShort(value.toShort())
 }
 
-internal fun ByteBuffer.putSignedShort(value: Int, fieldName: String) {
+internal fun ByteBuffer.putSignedShort(
+    value: Int,
+    fieldName: String,
+) {
     require(value in Short.MIN_VALUE..Short.MAX_VALUE) { "$fieldName out of range: $value" }
     putShort(value.toShort())
 }
 
-internal fun quantize(value: Double, resolution: Double, fieldName: String): Int {
+internal fun quantize(
+    value: Double,
+    resolution: Double,
+    fieldName: String,
+): Int {
     require(value.isFinite()) { "$fieldName must be finite: $value" }
     require(resolution.isFinite() && resolution != 0.0) { "Invalid resolution for $fieldName: $resolution" }
     val scaled = value / resolution
@@ -368,20 +492,32 @@ internal fun quantize(value: Double, resolution: Double, fieldName: String): Int
     return rounded.toInt()
 }
 
-internal fun encodeUnsignedBits(value: Int, bitWidth: Int, fieldName: String): Int {
+internal fun encodeUnsignedBits(
+    value: Int,
+    bitWidth: Int,
+    fieldName: String,
+): Int {
     val max = (1 shl bitWidth) - 1
     require(value in 0..max) { "$fieldName out of range: $value" }
     return value
 }
 
-internal fun encodeSignedBits(value: Int, bitWidth: Int, fieldName: String): Int {
+internal fun encodeSignedBits(
+    value: Int,
+    bitWidth: Int,
+    fieldName: String,
+): Int {
     val min = -(1 shl (bitWidth - 1))
     val max = (1 shl (bitWidth - 1)) - 1
     require(value in min..max) { "$fieldName out of range: $value" }
     return value and ((1 shl bitWidth) - 1)
 }
 
-internal fun requireRawLength(value: RawBytes, expectedLength: Int, fieldName: String) {
+internal fun requireRawLength(
+    value: RawBytes,
+    expectedLength: Int,
+    fieldName: String,
+) {
     require(value.size == expectedLength) { "$fieldName must be $expectedLength bytes but was ${value.size}" }
 }
 

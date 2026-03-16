@@ -1,11 +1,11 @@
 package io.github.erikgust2.asterix.cat062
 
-import java.nio.ByteBuffer
 import org.junit.Test
+import java.nio.ByteBuffer
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -14,15 +14,16 @@ class Cat062CodecTest {
 
     @Test
     fun usesCat062V115FrnNumbersInFspec() {
-        val bytes = writeRecord(
-            Cat062Record(
-                dataSourceIdentifier = DataSourceIdentifier(1, 2),
-                serviceIdentification = 4,
-                trackNumber = 42,
-                timeOfTrackInformationSeconds = 0.0,
-                trackStatus = TrackStatus(),
-            ),
-        )
+        val bytes =
+            writeRecord(
+                Cat062Record(
+                    dataSourceIdentifier = DataSourceIdentifier(1, 2),
+                    serviceIdentification = 4,
+                    trackNumber = 42,
+                    timeOfTrackInformationSeconds = 0.0,
+                    trackStatus = TrackStatus(),
+                ),
+            )
 
         assertEquals(0xB1, bytes[0].toUnsignedInt())
         assertEquals(0x0C, bytes[1].toUnsignedInt())
@@ -32,12 +33,13 @@ class Cat062CodecTest {
     fun writeRecordRequiresMandatoryCat062Items() {
         val buffer = ByteBuffer.allocate(64)
 
-        val error = assertFailsWith<IllegalArgumentException> {
-            Cat062Codec.writeRecord(
-                buffer,
-                Cat062Record(serviceIdentification = 4),
-            )
-        }
+        val error =
+            assertFailsWith<IllegalArgumentException> {
+                Cat062Codec.writeRecord(
+                    buffer,
+                    Cat062Record(serviceIdentification = 4),
+                )
+            }
 
         assertEquals("CAT062 record missing mandatory I062/010 dataSourceIdentifier", error.message)
     }
@@ -88,34 +90,35 @@ class Cat062CodecTest {
 
     @Test
     fun trackStatusMatchesV115ExtentLayout() {
-        val expected = TrackStatus(
-            mon = true,
-            spi = false,
-            mrh = true,
-            src = 5,
-            cnf = true,
-            sim = true,
-            tse = true,
-            tsb = true,
-            fpc = true,
-            aff = true,
-            stp = true,
-            kos = true,
-            ama = true,
-            md4 = 2,
-            me = true,
-            mi = true,
-            md5 = 1,
-            cst = true,
-            psr = false,
-            ssr = true,
-            mds = false,
-            ads = true,
-            suc = false,
-            aac = true,
-            sds = 2,
-            ems = 5,
-        )
+        val expected =
+            TrackStatus(
+                mon = true,
+                spi = false,
+                mrh = true,
+                src = 5,
+                cnf = true,
+                sim = true,
+                tse = true,
+                tsb = true,
+                fpc = true,
+                aff = true,
+                stp = true,
+                kos = true,
+                ama = true,
+                md4 = 2,
+                me = true,
+                mi = true,
+                md5 = 1,
+                cst = true,
+                psr = false,
+                ssr = true,
+                mds = false,
+                ads = true,
+                suc = false,
+                aac = true,
+                sds = 2,
+                ems = 5,
+            )
 
         val buffer = ByteBuffer.allocate(8)
         support.writeTrackStatus(buffer, expected)
@@ -412,10 +415,11 @@ class Cat062CodecTest {
             support.writeAircraftDerivedData(
                 ByteBuffer.allocate(8),
                 AircraftDerivedData(
-                    indicatedAirspeed = Airspeed(
-                        type = AirspeedType.INDICATED_AIRSPEED_KNOTS,
-                        value = 8_000.0,
-                    ),
+                    indicatedAirspeed =
+                        Airspeed(
+                            type = AirspeedType.INDICATED_AIRSPEED_KNOTS,
+                            value = 8_000.0,
+                        ),
                 ),
             )
         }
@@ -428,17 +432,19 @@ class Cat062CodecTest {
             buffer,
             AircraftDerivedData(
                 trueAirspeedKnots = 2046,
-                selectedAltitude = SelectedAltitude(
-                    sourceAvailable = true,
-                    sourceCode = 2,
-                    flightLevel = 1000.0,
-                ),
-                finalStateSelectedAltitude = FinalStateSelectedAltitude(
-                    managedVerticalModeActive = true,
-                    altitudeHoldActive = true,
-                    approachModeActive = false,
-                    flightLevel = -13.0,
-                ),
+                selectedAltitude =
+                    SelectedAltitude(
+                        sourceAvailable = true,
+                        sourceCode = 2,
+                        flightLevel = 1000.0,
+                    ),
+                finalStateSelectedAltitude =
+                    FinalStateSelectedAltitude(
+                        managedVerticalModeActive = true,
+                        altitudeHoldActive = true,
+                        approachModeActive = false,
+                        flightLevel = -13.0,
+                    ),
             ),
         )
         assertTrue(buffer.position() > 0)
@@ -453,11 +459,12 @@ class Cat062CodecTest {
             support.writeAircraftDerivedData(
                 ByteBuffer.allocate(8),
                 AircraftDerivedData(
-                    selectedAltitude = SelectedAltitude(
-                        sourceAvailable = true,
-                        sourceCode = 1,
-                        flightLevel = 1000.25,
-                    ),
+                    selectedAltitude =
+                        SelectedAltitude(
+                            sourceAvailable = true,
+                            sourceCode = 1,
+                            flightLevel = 1000.25,
+                        ),
                 ),
             )
         }
@@ -465,12 +472,13 @@ class Cat062CodecTest {
             support.writeAircraftDerivedData(
                 ByteBuffer.allocate(8),
                 AircraftDerivedData(
-                    finalStateSelectedAltitude = FinalStateSelectedAltitude(
-                        managedVerticalModeActive = false,
-                        altitudeHoldActive = false,
-                        approachModeActive = false,
-                        flightLevel = -13.25,
-                    ),
+                    finalStateSelectedAltitude =
+                        FinalStateSelectedAltitude(
+                            managedVerticalModeActive = false,
+                            altitudeHoldActive = false,
+                            approachModeActive = false,
+                            flightLevel = -13.25,
+                        ),
                 ),
             )
         }
@@ -580,7 +588,10 @@ class Cat062CodecTest {
         return buffer.toByteArray()
     }
 
-    private fun assertRangeFailure(expectedMessagePart: String, block: () -> Unit) {
+    private fun assertRangeFailure(
+        expectedMessagePart: String,
+        block: () -> Unit,
+    ) {
         val error = assertFailsWith<IllegalArgumentException>(block = block)
         assertTrue(error.message?.contains(expectedMessagePart) == true, "Expected '$expectedMessagePart' in '${error.message}'")
     }

@@ -34,7 +34,9 @@ data class Mode2Code(
     val code: Int,
 )
 
-enum class TargetIdentificationSource(val code: Int) {
+enum class TargetIdentificationSource(
+    val code: Int,
+) {
     CALLSIGN_OR_REGISTRATION_FROM_TRANSPONDER(0),
     CALLSIGN_NOT_FROM_TRANSPONDER(1),
     REGISTRATION_NOT_FROM_TRANSPONDER(2),

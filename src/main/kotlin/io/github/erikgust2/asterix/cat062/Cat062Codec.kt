@@ -24,7 +24,10 @@ object Cat062Codec {
         return Cat062DataBlock(records)
     }
 
-    fun writeDataBlock(buffer: ByteBuffer, block: Cat062DataBlock) {
+    fun writeDataBlock(
+        buffer: ByteBuffer,
+        block: Cat062DataBlock,
+    ) {
         val start = buffer.position()
         buffer.put(CATEGORY.toByte())
         buffer.putShort(0)
@@ -36,5 +39,8 @@ object Cat062Codec {
 
     fun readRecord(buffer: ByteBuffer): Cat062Record = support.readRecord(buffer)
 
-    fun writeRecord(buffer: ByteBuffer, record: Cat062Record) = support.writeRecord(buffer, record)
+    fun writeRecord(
+        buffer: ByteBuffer,
+        record: Cat062Record,
+    ) = support.writeRecord(buffer, record)
 }

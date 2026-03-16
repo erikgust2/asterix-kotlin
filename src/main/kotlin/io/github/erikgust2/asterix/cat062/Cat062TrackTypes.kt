@@ -131,7 +131,9 @@ data class Wgs84Accuracy(
 sealed interface VehicleFleetIdentification {
     val code: Int
 
-    enum class Known(override val code: Int) : VehicleFleetIdentification {
+    enum class Known(
+        override val code: Int,
+    ) : VehicleFleetIdentification {
         UNKNOWN(0),
         ATC_EQUIPMENT_MAINTENANCE(1),
         AIRPORT_MAINTENANCE(2),
@@ -151,7 +153,9 @@ sealed interface VehicleFleetIdentification {
         FOLLOW_ME(16),
     }
 
-    data class Unknown(override val code: Int) : VehicleFleetIdentification
+    data class Unknown(
+        override val code: Int,
+    ) : VehicleFleetIdentification
 
     companion object {
         val UNKNOWN: VehicleFleetIdentification = Known.UNKNOWN
@@ -172,8 +176,7 @@ sealed interface VehicleFleetIdentification {
         val AIRCRAFT_MAINTENANCE: VehicleFleetIdentification = Known.AIRCRAFT_MAINTENANCE
         val FOLLOW_ME: VehicleFleetIdentification = Known.FOLLOW_ME
 
-        fun fromCode(code: Int): VehicleFleetIdentification =
-            Known.entries.firstOrNull { it.code == code } ?: Unknown(code)
+        fun fromCode(code: Int): VehicleFleetIdentification = Known.entries.firstOrNull { it.code == code } ?: Unknown(code)
     }
 }
 

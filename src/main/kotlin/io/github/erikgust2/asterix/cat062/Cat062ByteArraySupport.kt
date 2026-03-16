@@ -1,6 +1,8 @@
 package io.github.erikgust2.asterix.cat062
 
-class RawBytes(bytes: ByteArray) {
+class RawBytes(
+    bytes: ByteArray,
+) {
     private val value = bytes.copyOf()
 
     val size: Int
@@ -10,8 +12,7 @@ class RawBytes(bytes: ByteArray) {
 
     internal fun unsafeBytes(): ByteArray = value
 
-    override fun equals(other: Any?): Boolean =
-        other is RawBytes && value.contentEquals(other.value)
+    override fun equals(other: Any?): Boolean = other is RawBytes && value.contentEquals(other.value)
 
     override fun hashCode(): Int = value.contentHashCode()
 
