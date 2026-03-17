@@ -49,6 +49,15 @@ The main entry point is `Cat062Codec`.
 The writer uses `ByteBuffer` directly, so the caller is responsible for
 allocating a large enough buffer and flipping it before reading.
 
+## CAT062 Coverage Status
+
+Supported CAT062 item coverage is tracked in `docs/TESTING_PLAN.md`.
+
+Current explicit limitations:
+
+- `RE` and `SP` are preserved as raw length-prefixed payloads
+- spare FRNs `2`, `29`, `30`, `31`, `32`, and `33` are unsupported and rejected on decode
+
 ## Minimal Example
 
 ```kotlin

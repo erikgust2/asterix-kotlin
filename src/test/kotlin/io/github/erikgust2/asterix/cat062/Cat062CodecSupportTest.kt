@@ -87,6 +87,27 @@ class Cat062CodecSupportTest {
     }
 
     @Test
+    fun readRecordRejectsEveryUnsupportedSpareFrnInLaterFspecExtent() {
+        val laterExtentSpareFrns =
+            listOf(
+                29 to 0x80,
+                30 to 0x40,
+                31 to 0x20,
+                32 to 0x10,
+                33 to 0x08,
+            )
+
+        laterExtentSpareFrns.forEach { (frn, fspecOctet) ->
+            val error =
+                assertFailsWith<IllegalStateException> {
+                    Cat062Codec.readRecord(bufferOf(0x01, 0x01, 0x01, 0x01, fspecOctet))
+                }
+
+            assertEquals("Unsupported FRN $frn in CAT062", error.message)
+        }
+    }
+
+    @Test
     fun readRecordRejectsTruncatedFspecContinuation() {
         assertFailsWith<BufferUnderflowException> {
             Cat062Codec.readRecord(bufferOf(0x01))

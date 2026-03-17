@@ -1,5 +1,11 @@
 package io.github.erikgust2.asterix.cat062
 
+/**
+ * Opaque binary payload with value semantics.
+ *
+ * This is used for pass-through CAT062 fields where the codec preserves the
+ * bytes but does not yet expose a richer spec-level model.
+ */
 class RawBytes(
     bytes: ByteArray,
 ) {

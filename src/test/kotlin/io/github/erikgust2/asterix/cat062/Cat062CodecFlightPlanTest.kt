@@ -3,6 +3,7 @@ package io.github.erikgust2.asterix.cat062
 import org.junit.Test
 import java.nio.BufferUnderflowException
 import java.nio.ByteBuffer
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
@@ -31,6 +32,55 @@ class Cat062CodecFlightPlanTest {
     }
 
     @Test
+    fun flightPlanRelatedDataUsesStructuredTimesOfDepartureArrival() {
+        val buffer = ByteBuffer.allocate(16)
+
+        support.writeFlightPlanRelatedData(
+            buffer,
+            FlightPlanRelatedData(
+                timesOfDepartureArrival =
+                    listOf(
+                        TimeOfDepartureArrival(
+                            typeCode = 8,
+                            day = RelativeDay.TOMORROW,
+                            hour = 23,
+                            minute = 59,
+                        ),
+                    ),
+            ),
+        )
+
+        assertContentEquals(
+            byteArrayOf(
+                0x01,
+                0x08,
+                0x01,
+                0x44,
+                0x17,
+                0x3B,
+                0x80.toByte(),
+            ),
+            buffer.usedBytes(),
+        )
+
+        buffer.flip()
+        assertEquals(
+            FlightPlanRelatedData(
+                timesOfDepartureArrival =
+                    listOf(
+                        TimeOfDepartureArrival(
+                            typeCode = 8,
+                            day = RelativeDay.TOMORROW,
+                            hour = 23,
+                            minute = 59,
+                        ),
+                    ),
+            ),
+            support.readFlightPlanRelatedData(buffer),
+        )
+    }
+
+    @Test
     fun flightPlanRelatedDataRoundTripsEachSubfieldIndependently() {
         val cases =
             listOf(
@@ -45,7 +95,18 @@ class Cat062CodecFlightPlanTest {
                 FlightPlanRelatedData(runwayDesignation = "19L"),
                 FlightPlanRelatedData(currentClearedFlightLevel = 240.0),
                 FlightPlanRelatedData(currentControlPosition = ControlPosition(7, 9)),
-                FlightPlanRelatedData(timesOfDepartureArrival = listOf(TimeOfDepartureArrival(byteArrayOf(1, 2, 3, 4)))),
+                FlightPlanRelatedData(
+                    timesOfDepartureArrival =
+                        listOf(
+                            TimeOfDepartureArrival(
+                                typeCode = 8,
+                                day = RelativeDay.TODAY,
+                                hour = 14,
+                                minute = 5,
+                                second = 33,
+                            ),
+                        ),
+                ),
                 FlightPlanRelatedData(aircraftStand = "A12"),
                 FlightPlanRelatedData(standStatus = StandStatus(emp = 2, avl = 1)),
                 FlightPlanRelatedData(standardInstrumentDeparture = "NIDIS1A"),
@@ -79,8 +140,8 @@ class Cat062CodecFlightPlanTest {
                 currentControlPosition = ControlPosition(7, 9),
                 timesOfDepartureArrival =
                     listOf(
-                        TimeOfDepartureArrival(byteArrayOf(1, 2, 3, 4)),
-                        TimeOfDepartureArrival(byteArrayOf(5, 6, 7, 8)),
+                        TimeOfDepartureArrival(typeCode = 0, day = RelativeDay.TODAY, hour = 8, minute = 30),
+                        TimeOfDepartureArrival(typeCode = 8, day = RelativeDay.TOMORROW, hour = 9, minute = 45, second = 5),
                     ),
                 aircraftStand = "A12",
                 standStatus = StandStatus(emp = 2, avl = 1),
@@ -136,16 +197,43 @@ class Cat062CodecFlightPlanTest {
                 FlightPlanRelatedData(preEmergencyMode3a = PreEmergencyMode3a(valid = true, code = 0x1000)),
             )
         }
+        assertRangeFailure("flightPlanRelatedData.timesOfDepartureArrival.hour out of range") {
+            support.writeFlightPlanRelatedData(
+                ByteBuffer.allocate(32),
+                FlightPlanRelatedData(
+                    timesOfDepartureArrival =
+                        listOf(
+                            TimeOfDepartureArrival(
+                                typeCode = 8,
+                                day = RelativeDay.TODAY,
+                                hour = 24,
+                                minute = 0,
+                            ),
+                        ),
+                ),
+            )
+        }
+        assertRangeFailure("flightPlanRelatedData.timesOfDepartureArrival.second out of range") {
+            support.writeFlightPlanRelatedData(
+                ByteBuffer.allocate(32),
+                FlightPlanRelatedData(
+                    timesOfDepartureArrival =
+                        listOf(
+                            TimeOfDepartureArrival(
+                                typeCode = 8,
+                                day = RelativeDay.TODAY,
+                                hour = 12,
+                                minute = 0,
+                                second = 60,
+                            ),
+                        ),
+                ),
+            )
+        }
         assertRangeFailure("ASCII field contains non-ASCII characters") {
             support.writeFlightPlanRelatedData(
                 ByteBuffer.allocate(32),
                 FlightPlanRelatedData(callsign = "SÄS123"),
-            )
-        }
-        assertRangeFailure("flightPlanRelatedData.timesOfDepartureArrival.raw must be 4 bytes but was 3") {
-            support.writeFlightPlanRelatedData(
-                ByteBuffer.allocate(32),
-                FlightPlanRelatedData(timesOfDepartureArrival = listOf(TimeOfDepartureArrival(byteArrayOf(1, 2, 3)))),
             )
         }
     }
@@ -160,7 +248,16 @@ class Cat062CodecFlightPlanTest {
                         it,
                         FlightPlanRelatedData(
                             callsign = "SAS123",
-                            timesOfDepartureArrival = listOf(TimeOfDepartureArrival(byteArrayOf(1, 2, 3, 4))),
+                            timesOfDepartureArrival =
+                                listOf(
+                                    TimeOfDepartureArrival(
+                                        typeCode = 8,
+                                        day = RelativeDay.TODAY,
+                                        hour = 14,
+                                        minute = 5,
+                                        second = 33,
+                                    ),
+                                ),
                             preEmergencyCallsign = "EMERG01",
                         ),
                     )

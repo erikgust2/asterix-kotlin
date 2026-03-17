@@ -11,6 +11,38 @@ import kotlin.test.assertTrue
 
 class Cat062CodecAircraftDerivedDataTest {
     private val support = Cat062CodecSupport()
+    private val trajectoryIntentPoint =
+        TrajectoryIntentPoint(
+            tcpNumberAvailable = true,
+            tcpNonCompliance = true,
+            tcpNumber = 5,
+            altitudeFeet = 1_000.0,
+            positionWgs84 = Wgs84Position(0.0, 0.0),
+            pointType = 6,
+            turnDirectionCode = 2,
+            turnRadiusAvailable = true,
+            timeOverPointAvailable = true,
+            timeOverPointSeconds = 258,
+            turnRadiusNm = 12.34,
+        )
+    private val secondTrajectoryIntentPoint =
+        TrajectoryIntentPoint(
+            tcpNumberAvailable = false,
+            tcpNonCompliance = false,
+            tcpNumber = 12,
+            altitudeFeet = 34_560.0,
+            positionWgs84 =
+                Wgs84Position(
+                    12 * WGS84_THREE_OCTET_RESOLUTION,
+                    -7 * WGS84_THREE_OCTET_RESOLUTION,
+                ),
+            pointType = 8,
+            turnDirectionCode = 3,
+            turnRadiusAvailable = false,
+            timeOverPointAvailable = false,
+            timeOverPointSeconds = 86_399,
+            turnRadiusNm = 0.0,
+        )
 
     @Test
     fun aircraftDerivedDataUsesSplitAirspeedFieldsAndAdsbStatus() {
@@ -75,6 +107,47 @@ class Cat062CodecAircraftDerivedDataTest {
     }
 
     @Test
+    fun aircraftDerivedDataUsesSpecLayoutForTrajectoryIntentPoint() {
+        val buffer = ByteBuffer.allocate(32)
+        support.writeAircraftDerivedData(
+            buffer,
+            AircraftDerivedData(
+                trajectoryIntentData = listOf(trajectoryIntentPoint),
+            ),
+        )
+
+        assertContentEquals(
+            byteArrayOf(
+                0x01,
+                0x40,
+                0x01,
+                0x45,
+                0x00,
+                0x64,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x6A,
+                0x00,
+                0x01,
+                0x02,
+                0x04,
+                0xD2.toByte(),
+            ),
+            buffer.usedBytes(),
+        )
+
+        buffer.flip()
+        assertEquals(
+            AircraftDerivedData(trajectoryIntentData = listOf(trajectoryIntentPoint)),
+            support.readAircraftDerivedData(buffer),
+        )
+    }
+
+    @Test
     fun aircraftDerivedDataRoundTripsEachSubfieldIndependently() {
         val cases =
             listOf(
@@ -103,7 +176,7 @@ class Cat062CodecAircraftDerivedDataTest {
                     ),
                 "trajectoryIntentData" to
                     AircraftDerivedData(
-                        trajectoryIntentData = listOf(TrajectoryIntentPoint(ByteArray(15) { index -> index.toByte() })),
+                        trajectoryIntentData = listOf(trajectoryIntentPoint),
                     ),
                 "communicationsCapabilities" to
                     AircraftDerivedData(
@@ -190,8 +263,8 @@ class Cat062CodecAircraftDerivedDataTest {
                 trajectoryIntentStatus = TrajectoryIntentStatus(available = true, valid = false),
                 trajectoryIntentData =
                     listOf(
-                        TrajectoryIntentPoint(ByteArray(15) { index -> index.toByte() }),
-                        TrajectoryIntentPoint(ByteArray(15) { index -> (index + 15).toByte() }),
+                        trajectoryIntentPoint,
+                        secondTrajectoryIntentPoint,
                     ),
                 communicationsCapabilities =
                     CommunicationsCapabilities(
@@ -400,11 +473,14 @@ class Cat062CodecAircraftDerivedDataTest {
             )
         }
 
-        assertRangeFailure("aircraftDerivedData.trajectoryIntentData.raw must be 15 bytes but was 3") {
+        assertRangeFailure("aircraftDerivedData.trajectoryIntentData.pointType out of range") {
             support.writeAircraftDerivedData(
                 ByteBuffer.allocate(32),
                 AircraftDerivedData(
-                    trajectoryIntentData = listOf(TrajectoryIntentPoint(byteArrayOf(1, 2, 3))),
+                    trajectoryIntentData =
+                        listOf(
+                            trajectoryIntentPoint.copy(pointType = 12),
+                        ),
                 ),
             )
         }
@@ -448,7 +524,7 @@ class Cat062CodecAircraftDerivedDataTest {
                         it,
                         AircraftDerivedData(
                             targetAddress = 0x123456,
-                            trajectoryIntentData = listOf(TrajectoryIntentPoint(ByteArray(15) { index -> index.toByte() })),
+                            trajectoryIntentData = listOf(trajectoryIntentPoint),
                             modeSMessages = listOf(ModeSMessage(byteArrayOf(1, 2, 3, 4, 5, 6, 7), 4, 0)),
                         ),
                     )

@@ -17,11 +17,33 @@ data class ControlPosition(
     val position: Int,
 )
 
-data class TimeOfDepartureArrival(
-    val raw: RawBytes,
+enum class RelativeDay(
+    val code: Int,
 ) {
-    constructor(raw: ByteArray) : this(raw.toRawBytes())
+    TODAY(0),
+    YESTERDAY(1),
+    TOMORROW(2),
+    INVALID(3),
+    ;
+
+    companion object {
+        fun fromCode(code: Int): RelativeDay = entries.first { it.code == code }
+    }
 }
+
+/**
+ * Structured CAT062 I062/390 time of departure / arrival entry.
+ *
+ * `typeCode` preserves the spec's 5-bit code directly. `second == null`
+ * represents "seconds not available" on the wire.
+ */
+data class TimeOfDepartureArrival(
+    val typeCode: Int,
+    val day: RelativeDay,
+    val hour: Int,
+    val minute: Int,
+    val second: Int? = null,
+)
 
 data class StandStatus(
     val emp: Int,
