@@ -76,7 +76,7 @@ Shared helpers provide:
 | 19 | `I062/135` Calculated Track Barometric Altitude | `Cat062CodecWireFixedItemsTest`, `Cat062CodecDataBlockTest` | Record round-trip, flag decoding, overflow rejection |
 | 20 | `I062/220` Calculated Rate Of Climb/Descent | `Cat062CodecSupportTest`, `Cat062CodecEstimatedAccuraciesTest` | Dedicated public record round-trip and write-side overflow rejection, plus quantization coverage via estimated-accuracy tests |
 | 21 | `I062/390` Flight Plan Related Data | `Cat062CodecFlightPlanTest` | Spec-layout assertion, per-subfield round-trips, full round-trip, repetition coverage, structured time of departure/arrival entry coverage, ASCII behavior, range failures, truncation coverage |
-| 22 | `I062/270` Target Size & Orientation | `Cat062CodecWireFixedItemsTest`, `Cat062CodecSupportTest` | Full width-extension round-trip, wrapped-orientation rejection, width overflow, public record round-trip |
+| 22 | `I062/270` Target Size & Orientation | `Cat062CodecWireFixedItemsTest`, `Cat062CodecSupportTest` | Round-trip coverage for length-only, orientation-only, and width-extension encodings; explicit rejection of width without orientation; wrapped-orientation rejection; width overflow; public record round-trip |
 | 23 | `I062/300` Vehicle Fleet Identification | `Cat062CodecWireFixedItemsTest`, `Cat062CodecDataBlockTest` | Known and unknown code decode, record round-trip |
 | 24 | `I062/110` Mode 5 Data Reports & Extended Mode 1 Code | `Cat062CodecMode5Test` | Spec-layout assertion, each subfield independently, full round-trip, field-range failures, truncation coverage |
 | 25 | `I062/120` Track Mode 2 Code | `Cat062CodecWireFixedItemsTest` | Spec-layout assertion and direct round-trip coverage |

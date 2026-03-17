@@ -89,6 +89,11 @@ val decoded = Cat062Codec.readDataBlock(buffer)
 `writeRecord` enforces the CAT062 mandatory items from the v1.15 UAP:
 `I062/010`, `I062/040`, `I062/070`, and `I062/080`.
 
+For `I062/270` Target Size & Orientation, the model follows the wire extents:
+`orientationDegrees = null` means length-only, `orientationDegrees != null`
+with `widthMeters = null` means orientation is present without width, and
+`widthMeters` requires `orientationDegrees`.
+
 ## Scope
 
 This repository currently only supports CAT062 System Track Data, and is not yet a general ASTERIX

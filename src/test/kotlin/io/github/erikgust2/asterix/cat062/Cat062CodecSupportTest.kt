@@ -67,6 +67,20 @@ class Cat062CodecSupportTest {
     }
 
     @Test
+    fun writeRecordRejectsTargetSizeWidthWithoutOrientation() {
+        val error =
+            assertFailsWith<IllegalArgumentException> {
+                writeRecordBytes(
+                    minimalValidRecord().copy(
+                        targetSizeAndOrientation = TargetSizeAndOrientation(lengthMeters = 12, orientationDegrees = null, widthMeters = 7),
+                    ),
+                )
+            }
+
+        assertEquals("targetSizeAndOrientation.widthMeters requires orientationDegrees", error.message)
+    }
+
+    @Test
     fun readRecordRejectsUnsupportedFrnInFirstFspecExtent() {
         val error =
             assertFailsWith<IllegalStateException> {

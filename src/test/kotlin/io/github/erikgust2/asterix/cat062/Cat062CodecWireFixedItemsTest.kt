@@ -111,18 +111,48 @@ class Cat062CodecWireFixedItemsTest {
     }
 
     @Test
-    fun targetSizeAndOrientationRoundTripsWidthExtension() {
-        val buffer = ByteBuffer.allocate(3)
+    fun targetSizeAndOrientationRoundTripsValidPresenceCombinations() {
+        val noOrientation = ByteBuffer.allocate(1)
+        support.writeTargetSizeAndOrientation(
+            noOrientation,
+            TargetSizeAndOrientation(lengthMeters = 12, orientationDegrees = null, widthMeters = null),
+        )
+        assertContentEquals(byteArrayOf(0x18), noOrientation.usedBytes())
+        noOrientation.flip()
+        assertEquals(
+            TargetSizeAndOrientation(lengthMeters = 12, orientationDegrees = null, widthMeters = null),
+            support.readTargetSizeAndOrientation(noOrientation),
+        )
+
+        val orientationOnly = ByteBuffer.allocate(2)
+        support.writeTargetSizeAndOrientation(
+            orientationOnly,
+            TargetSizeAndOrientation(lengthMeters = 12, orientationDegrees = 90.0, widthMeters = null),
+        )
+        assertContentEquals(byteArrayOf(0x19, 0x40), orientationOnly.usedBytes())
+        orientationOnly.flip()
+        assertEquals(
+            TargetSizeAndOrientation(lengthMeters = 12, orientationDegrees = 90.0, widthMeters = null),
+            support.readTargetSizeAndOrientation(orientationOnly),
+        )
+
+        val withWidth = ByteBuffer.allocate(3)
         val expected = TargetSizeAndOrientation(lengthMeters = 12, orientationDegrees = 90.0, widthMeters = 7)
-
-        support.writeTargetSizeAndOrientation(buffer, expected)
-        buffer.flip()
-
-        assertEquals(expected, support.readTargetSizeAndOrientation(buffer))
+        support.writeTargetSizeAndOrientation(withWidth, expected)
+        assertContentEquals(byteArrayOf(0x19, 0x41, 0x0E), withWidth.usedBytes())
+        withWidth.flip()
+        assertEquals(expected, support.readTargetSizeAndOrientation(withWidth))
     }
 
     @Test
-    fun targetSizeAndOrientationRejectsWrappedOrientationAndWidthOverflow() {
+    fun targetSizeAndOrientationRejectsInvalidPresenceAndRangeCombinations() {
+        assertRangeFailure("targetSizeAndOrientation.widthMeters requires orientationDegrees") {
+            support.writeTargetSizeAndOrientation(
+                ByteBuffer.allocate(3),
+                TargetSizeAndOrientation(lengthMeters = 12, orientationDegrees = null, widthMeters = 7),
+            )
+        }
+
         assertRangeFailure("targetSizeAndOrientation.orientationDegrees out of range") {
             support.writeTargetSizeAndOrientation(
                 ByteBuffer.allocate(3),

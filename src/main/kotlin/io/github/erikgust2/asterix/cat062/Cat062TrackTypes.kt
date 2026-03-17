@@ -112,6 +112,14 @@ data class TrackDataAges(
     val agesSeconds: Map<TrackDataAgeType, Double>,
 )
 
+/**
+ * CAT062 I062/270 Target Size & Orientation presence semantics follow the wire extents:
+ * orientation is the first extent, and width is the second extent.
+ *
+ * `orientationDegrees == null` means only length is present.
+ * `orientationDegrees != null && widthMeters == null` means orientation is present without width.
+ * `widthMeters != null` requires `orientationDegrees != null`.
+ */
 data class TargetSizeAndOrientation(
     val lengthMeters: Int,
     val orientationDegrees: Double? = null,
