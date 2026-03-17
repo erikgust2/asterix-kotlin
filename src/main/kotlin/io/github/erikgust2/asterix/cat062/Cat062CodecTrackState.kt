@@ -47,17 +47,48 @@ internal fun Cat062CodecSupport.writeTrackStatus(
     buffer: ByteBuffer,
     value: TrackStatus,
 ) {
-    val needsOctet5 = listOf(value.sds, value.ems).any { it != null }
-    val needsOctet4 = needsOctet5 || listOf(value.cst, value.psr, value.ssr, value.mds, value.ads, value.suc, value.aac).any { it != null }
-    val needsOctet3 = needsOctet4 || listOf(value.ama, value.md4, value.me, value.mi, value.md5).any { it != null }
-    val needsOctet2 = needsOctet3 || listOf(value.sim, value.tse, value.tsb, value.fpc, value.aff, value.stp, value.kos).any { it != null }
+    val highestExtent = value.highestSpecifiedExtent()
+    requireTrackStatusExtentComplete(
+        listOf(value.mon, value.spi, value.mrh, value.src, value.cnf),
+        "trackStatus.octet1 fields must all be specified",
+    )
+    if (highestExtent >= 2) {
+        requireTrackStatusExtentComplete(
+            listOf(value.sim, value.tse, value.tsb, value.fpc, value.aff, value.stp, value.kos),
+            "trackStatus.octet2 fields must all be specified when any octet2-or-later field is present",
+        )
+    }
+    if (highestExtent >= 3) {
+        requireTrackStatusExtentComplete(
+            listOf(value.ama, value.md4, value.me, value.mi, value.md5),
+            "trackStatus.octet3 fields must all be specified when any octet3-or-later field is present",
+        )
+    }
+    if (highestExtent >= 4) {
+        requireTrackStatusExtentComplete(
+            listOf(value.cst, value.psr, value.ssr, value.mds, value.ads, value.suc, value.aac),
+            "trackStatus.octet4 fields must all be specified when any octet4-or-later field is present",
+        )
+    }
+    if (highestExtent >= 5) {
+        requireTrackStatusExtentComplete(
+            listOf(value.sds, value.ems),
+            "trackStatus.octet5 fields must all be specified when any octet5 field is present",
+        )
+    }
+
+    val needsOctet2 = highestExtent >= 2
+    val needsOctet3 = highestExtent >= 3
+    val needsOctet4 = highestExtent >= 4
+    val needsOctet5 = highestExtent >= 5
 
     var octet1 = 0
     if (value.mon == true) octet1 = octet1 or 0x80
     if (value.spi == true) octet1 = octet1 or 0x40
     if (value.mrh == true) octet1 = octet1 or 0x20
-    require(value.src == null || value.src in 0..0x07) { "trackStatus.src out of range: ${value.src}" }
-    octet1 = octet1 or ((value.src ?: 0) shl 2)
+    val src = value.src!!
+    require(src in 0..0x07) { "trackStatus.src out of range: ${value.src}" }
+    octet1 = octet1 or (src shl 2)
     if (value.cnf == true) octet1 = octet1 or 0x02
     if (needsOctet2) octet1 = octet1 or 0x01
     buffer.put(octet1.toByte())
@@ -77,12 +108,14 @@ internal fun Cat062CodecSupport.writeTrackStatus(
     if (needsOctet3) {
         var octet3 = 0
         if (value.ama == true) octet3 = octet3 or 0x80
-        require(value.md4 == null || value.md4 in 0..0x03) { "trackStatus.md4 out of range: ${value.md4}" }
-        octet3 = octet3 or (((value.md4 ?: 0) and 0x03) shl 5)
+        val md4 = value.md4!!
+        require(md4 in 0..0x03) { "trackStatus.md4 out of range: ${value.md4}" }
+        octet3 = octet3 or ((md4 and 0x03) shl 5)
         if (value.me == true) octet3 = octet3 or 0x10
         if (value.mi == true) octet3 = octet3 or 0x08
-        require(value.md5 == null || value.md5 in 0..0x03) { "trackStatus.md5 out of range: ${value.md5}" }
-        octet3 = octet3 or (((value.md5 ?: 0) and 0x03) shl 1)
+        val md5 = value.md5!!
+        require(md5 in 0..0x03) { "trackStatus.md5 out of range: ${value.md5}" }
+        octet3 = octet3 or ((md5 and 0x03) shl 1)
         if (needsOctet4) octet3 = octet3 or 0x01
         buffer.put(octet3.toByte())
     }
@@ -100,12 +133,30 @@ internal fun Cat062CodecSupport.writeTrackStatus(
     }
     if (needsOctet5) {
         var octet5 = 0
-        require(value.sds == null || value.sds in 0..0x03) { "trackStatus.sds out of range: ${value.sds}" }
-        require(value.ems == null || value.ems in 0..0x07) { "trackStatus.ems out of range: ${value.ems}" }
-        octet5 = octet5 or (((value.sds ?: 0) and 0x03) shl 6)
-        octet5 = octet5 or (((value.ems ?: 0) and 0x07) shl 3)
+        val sds = value.sds!!
+        val ems = value.ems!!
+        require(sds in 0..0x03) { "trackStatus.sds out of range: ${value.sds}" }
+        require(ems in 0..0x07) { "trackStatus.ems out of range: ${value.ems}" }
+        octet5 = octet5 or ((sds and 0x03) shl 6)
+        octet5 = octet5 or ((ems and 0x07) shl 3)
         buffer.put(octet5.toByte())
     }
+}
+
+private fun TrackStatus.highestSpecifiedExtent(): Int =
+    when {
+        listOf(sds, ems).any { it != null } -> 5
+        listOf(cst, psr, ssr, mds, ads, suc, aac).any { it != null } -> 4
+        listOf(ama, md4, me, mi, md5).any { it != null } -> 3
+        listOf(sim, tse, tsb, fpc, aff, stp, kos).any { it != null } -> 2
+        else -> 1
+    }
+
+private fun requireTrackStatusExtentComplete(
+    fields: List<Any?>,
+    message: String,
+) {
+    require(fields.all { it != null }) { message }
 }
 
 internal fun Cat062CodecSupport.readSystemTrackUpdateAges(buffer: ByteBuffer): SystemTrackUpdateAges {
