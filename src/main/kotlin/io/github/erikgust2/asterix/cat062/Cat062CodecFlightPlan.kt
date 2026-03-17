@@ -51,7 +51,20 @@ internal fun Cat062CodecSupport.readFlightPlanRelatedData(buffer: ByteBuffer): F
     }
     if (isCompoundSubfieldPresent(indicator, 12)) {
         val rep = buffer.get().toUnsignedInt()
-        timesOfDepartureArrival = List(rep) { TimeOfDepartureArrival(readBytes(buffer, 4)) }
+        timesOfDepartureArrival =
+            List(rep) {
+                val b1 = buffer.get().toUnsignedInt()
+                val b2 = buffer.get().toUnsignedInt()
+                val b3 = buffer.get().toUnsignedInt()
+                val b4 = buffer.get().toUnsignedInt()
+                TimeOfDepartureArrival(
+                    typeCode = b1 ushr 3,
+                    day = RelativeDay.fromCode((b1 ushr 1) and 0x03),
+                    hour = b2 and 0x1F,
+                    minute = b3 and 0x3F,
+                    second = if ((b4 and 0x80) != 0) null else b4 and 0x3F,
+                )
+            }
     }
     if (isCompoundSubfieldPresent(indicator, 13)) aircraftStand = readAscii(buffer, 6).trim()
     if (isCompoundSubfieldPresent(indicator, 14)) {
@@ -149,8 +162,25 @@ internal fun Cat062CodecSupport.writeFlightPlanRelatedData(
     value.timesOfDepartureArrival?.let {
         buffer.putUnsignedByte(it.size, "flightPlanRelatedData.timesOfDepartureArrival.size")
         it.forEach { entry ->
-            requireRawLength(entry.raw, 4, "flightPlanRelatedData.timesOfDepartureArrival.raw")
-            buffer.put(entry.raw.unsafeBytes())
+            require(entry.typeCode in 0..0x1F) {
+                "flightPlanRelatedData.timesOfDepartureArrival.typeCode out of range: ${entry.typeCode}"
+            }
+            require(entry.hour in 0..23) {
+                "flightPlanRelatedData.timesOfDepartureArrival.hour out of range: ${entry.hour}"
+            }
+            require(entry.minute in 0..59) {
+                "flightPlanRelatedData.timesOfDepartureArrival.minute out of range: ${entry.minute}"
+            }
+            entry.second?.let { second ->
+                require(second in 0..59) {
+                    "flightPlanRelatedData.timesOfDepartureArrival.second out of range: $second"
+                }
+            }
+            buffer.put((((entry.typeCode and 0x1F) shl 3) or ((entry.day.code and 0x03) shl 1)).toByte())
+            buffer.put((entry.hour and 0x1F).toByte())
+            buffer.put((entry.minute and 0x3F).toByte())
+            val secondsOctet = (if (entry.second == null) 0x80 else 0) or ((entry.second ?: 0) and 0x3F)
+            buffer.put(secondsOctet.toByte())
         }
     }
     value.aircraftStand?.let { writeAscii(buffer, it, 6) }

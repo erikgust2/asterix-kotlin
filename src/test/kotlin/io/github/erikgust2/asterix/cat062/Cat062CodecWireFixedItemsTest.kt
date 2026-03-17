@@ -190,12 +190,42 @@ class Cat062CodecWireFixedItemsTest {
 
     @Test
     fun byteArrayBackedModelTypesUseContentEquality() {
-        assertEquals(TrajectoryIntentPoint(byteArrayOf(1, 2, 3)), TrajectoryIntentPoint(byteArrayOf(1, 2, 3)))
+        assertEquals(
+            TrajectoryIntentPoint(
+                tcpNumberAvailable = true,
+                tcpNonCompliance = false,
+                tcpNumber = 3,
+                altitudeFeet = 1_000.0,
+                positionWgs84 = Wgs84Position(0.0, 0.0),
+                pointType = 1,
+                turnDirectionCode = 3,
+                turnRadiusAvailable = true,
+                timeOverPointAvailable = false,
+                timeOverPointSeconds = 17,
+                turnRadiusNm = 2.5,
+            ),
+            TrajectoryIntentPoint(
+                tcpNumberAvailable = true,
+                tcpNonCompliance = false,
+                tcpNumber = 3,
+                altitudeFeet = 1_000.0,
+                positionWgs84 = Wgs84Position(0.0, 0.0),
+                pointType = 1,
+                turnDirectionCode = 3,
+                turnRadiusAvailable = true,
+                timeOverPointAvailable = false,
+                timeOverPointSeconds = 17,
+                turnRadiusNm = 2.5,
+            ),
+        )
         assertEquals(
             ModeSMessage(byteArrayOf(1, 2, 3, 4, 5, 6, 7), 4, 0),
             ModeSMessage(byteArrayOf(1, 2, 3, 4, 5, 6, 7), 4, 0),
         )
-        assertEquals(TimeOfDepartureArrival(byteArrayOf(1, 2, 3, 4)), TimeOfDepartureArrival(byteArrayOf(1, 2, 3, 4)))
+        assertEquals(
+            TimeOfDepartureArrival(typeCode = 8, day = RelativeDay.TODAY, hour = 14, minute = 5, second = 33),
+            TimeOfDepartureArrival(typeCode = 8, day = RelativeDay.TODAY, hour = 14, minute = 5, second = 33),
+        )
         assertEquals(
             Cat062Record(reservedExpansionField = byteArrayOf(9, 8, 7).toRawBytes(), specialPurposeField = byteArrayOf(6, 5).toRawBytes()),
             Cat062Record(reservedExpansionField = byteArrayOf(9, 8, 7).toRawBytes(), specialPurposeField = byteArrayOf(6, 5).toRawBytes()),

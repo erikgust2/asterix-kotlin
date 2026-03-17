@@ -391,7 +391,7 @@ internal fun Cat062CodecSupport.readBytes(
 internal fun Cat062CodecSupport.readUnsignedInt24(buffer: ByteBuffer): Int =
     (buffer.get().toUnsignedInt() shl 16) or (buffer.get().toUnsignedInt() shl 8) or buffer.get().toUnsignedInt()
 
-private fun Cat062CodecSupport.readSignedInt24(buffer: ByteBuffer): Int = signExtend(readUnsignedInt24(buffer), 24)
+internal fun Cat062CodecSupport.readSignedInt24(buffer: ByteBuffer): Int = signExtend(readUnsignedInt24(buffer), 24)
 
 internal fun Cat062CodecSupport.writeUnsignedInt24(
     buffer: ByteBuffer,
@@ -404,7 +404,7 @@ internal fun Cat062CodecSupport.writeUnsignedInt24(
     buffer.put((value and 0xFF).toByte())
 }
 
-private fun Cat062CodecSupport.writeSignedInt24(
+internal fun Cat062CodecSupport.writeSignedInt24(
     buffer: ByteBuffer,
     value: Int,
     fieldName: String,
@@ -522,3 +522,4 @@ internal fun requireRawLength(
 }
 
 internal const val WGS84_RESOLUTION = 180.0 / 33554432.0
+internal const val WGS84_THREE_OCTET_RESOLUTION = 180.0 / 8388608.0

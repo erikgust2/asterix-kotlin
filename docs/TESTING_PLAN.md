@@ -65,7 +65,7 @@ Shared helpers provide:
 | 8 | `I062/210` Calculated Acceleration (Cartesian) | `Cat062CodecWireFixedItemsTest` | Direct wire round-trip coverage |
 | 9 | `I062/060` Track Mode 3/A Code | `Cat062CodecWireFixedItemsTest`, `Cat062CodecSupportTest` | Spec-layout assertion and public record round-trip |
 | 10 | `I062/245` Target Identification | `Cat062CodecWireFixedItemsTest`, `Cat062CodecDataBlockTest` | All source enums, normalization, unsupported-character rejection, overlength rejection, public round-trip |
-| 11 | `I062/380` Aircraft Derived Data | `Cat062CodecAircraftDerivedDataTest` | Spec-layout assertions, per-subfield round-trips across all implemented subfields, dense round-trip, repetition coverage, selected bounds and truncation coverage |
+| 11 | `I062/380` Aircraft Derived Data | `Cat062CodecAircraftDerivedDataTest` | Spec-layout assertions, per-subfield round-trips across all implemented subfields, dense round-trip, repetition coverage, selected bounds and truncation coverage, including structured trajectory intent point encoding/decoding |
 | 12 | `I062/040` Track Number | `Cat062CodecSupportTest`, `Cat062CodecDataBlockTest` | Mandatory item coverage and public round-trips |
 | 13 | `I062/080` Track Status | `Cat062CodecTrackStateTest`, `Cat062CodecDataBlockTest` | Minimal and full extents, spec byte layout, range failures, public round-trip |
 | 14 | `I062/290` System Track Update Ages | `Cat062CodecTrackStateTest` | Sparse coverage, empty and dense population coverage |
@@ -75,7 +75,7 @@ Shared helpers provide:
 | 18 | `I062/130` Calculated Track Geometric Altitude | `Cat062CodecSupportTest`, `Cat062CodecEstimatedAccuraciesTest` | Dedicated public record round-trip and write-side overflow rejection, plus indirect quantization coverage via estimated-accuracy tests |
 | 19 | `I062/135` Calculated Track Barometric Altitude | `Cat062CodecWireFixedItemsTest`, `Cat062CodecDataBlockTest` | Record round-trip, flag decoding, overflow rejection |
 | 20 | `I062/220` Calculated Rate Of Climb/Descent | `Cat062CodecSupportTest`, `Cat062CodecEstimatedAccuraciesTest` | Dedicated public record round-trip and write-side overflow rejection, plus quantization coverage via estimated-accuracy tests |
-| 21 | `I062/390` Flight Plan Related Data | `Cat062CodecFlightPlanTest` | Spec-layout assertion, per-subfield round-trips, full round-trip, repetition coverage, ASCII behavior, range failures, truncation coverage |
+| 21 | `I062/390` Flight Plan Related Data | `Cat062CodecFlightPlanTest` | Spec-layout assertion, per-subfield round-trips, full round-trip, repetition coverage, structured time of departure/arrival entry coverage, ASCII behavior, range failures, truncation coverage |
 | 22 | `I062/270` Target Size & Orientation | `Cat062CodecWireFixedItemsTest`, `Cat062CodecSupportTest` | Full width-extension round-trip, wrapped-orientation rejection, width overflow, public record round-trip |
 | 23 | `I062/300` Vehicle Fleet Identification | `Cat062CodecWireFixedItemsTest`, `Cat062CodecDataBlockTest` | Known and unknown code decode, record round-trip |
 | 24 | `I062/110` Mode 5 Data Reports & Extended Mode 1 Code | `Cat062CodecMode5Test` | Spec-layout assertion, each subfield independently, full round-trip, field-range failures, truncation coverage |
@@ -89,7 +89,17 @@ Shared helpers provide:
 Unsupported FRN coverage:
 
 - `Cat062CodecSupportTest` verifies failure on unsupported FRN `2`
-- `Cat062CodecSupportTest` verifies failure on unsupported FRN `29`
+- `Cat062CodecSupportTest` verifies failure on unsupported FRNs `29`, `30`, `31`, `32`, and `33`
+
+## Explicit Partial Support
+
+These item areas are intentionally preserved as opaque payloads for now rather
+than exposed as fully decoded spec-level models:
+
+- `RE` and `SP` are modeled as raw pass-through payloads
+
+This keeps byte-level round-tripping stable while making the current support
+boundary explicit in the API and docs.
 
 ## Malformed Input Coverage
 

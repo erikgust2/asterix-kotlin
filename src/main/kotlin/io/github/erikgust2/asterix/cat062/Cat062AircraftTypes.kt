@@ -19,10 +19,18 @@ data class TrajectoryIntentStatus(
 )
 
 data class TrajectoryIntentPoint(
-    val raw: RawBytes,
-) {
-    constructor(raw: ByteArray) : this(raw.toRawBytes())
-}
+    val tcpNumberAvailable: Boolean,
+    val tcpNonCompliance: Boolean,
+    val tcpNumber: Int,
+    val altitudeFeet: Double,
+    val positionWgs84: Wgs84Position,
+    val pointType: Int,
+    val turnDirectionCode: Int,
+    val turnRadiusAvailable: Boolean,
+    val timeOverPointAvailable: Boolean,
+    val timeOverPointSeconds: Int,
+    val turnRadiusNm: Double,
+)
 
 data class CommunicationsCapabilities(
     val comCode: Int,

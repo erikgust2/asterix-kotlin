@@ -78,7 +78,7 @@ internal fun Cat062CodecSupport.readAircraftDerivedData(buffer: ByteBuffer): Air
     }
     if (isCompoundSubfieldPresent(indicator, 9)) {
         val rep = buffer.get().toUnsignedInt()
-        trajectoryIntentData = List(rep) { TrajectoryIntentPoint(readBytes(buffer, 15)) }
+        trajectoryIntentData = List(rep) { readTrajectoryIntentPoint(buffer) }
     }
     if (isCompoundSubfieldPresent(indicator, 10)) {
         val b1 = buffer.get().toUnsignedInt()
@@ -282,10 +282,7 @@ internal fun Cat062CodecSupport.writeAircraftDerivedData(
     }
     value.trajectoryIntentData?.let {
         buffer.putUnsignedByte(it.size, "aircraftDerivedData.trajectoryIntentData.size")
-        it.forEach { point ->
-            requireRawLength(point.raw, 15, "aircraftDerivedData.trajectoryIntentData.raw")
-            buffer.put(point.raw.unsafeBytes())
-        }
+        it.forEach { point -> writeTrajectoryIntentPoint(buffer, point) }
     }
     value.communicationsCapabilities?.let {
         require(it.comCode in 0..0x07) { "aircraftDerivedData.communicationsCapabilities.comCode out of range: ${it.comCode}" }
@@ -402,6 +399,97 @@ internal fun Cat062CodecSupport.writeAircraftDerivedData(
             "aircraftDerivedData.barometricPressureSettingHpa",
         )
     }
+}
+
+private fun Cat062CodecSupport.readTrajectoryIntentPoint(buffer: ByteBuffer): TrajectoryIntentPoint {
+    val firstOctet = buffer.get().toUnsignedInt()
+    val altitudeFeet = buffer.short.toInt() * 10.0
+    val latitudeDegrees = readSignedInt24(buffer) * WGS84_THREE_OCTET_RESOLUTION
+    val longitudeDegrees = readSignedInt24(buffer) * WGS84_THREE_OCTET_RESOLUTION
+    val secondOctet = buffer.get().toUnsignedInt()
+    return TrajectoryIntentPoint(
+        tcpNumberAvailable = (firstOctet and 0x80) == 0,
+        tcpNonCompliance = (firstOctet and 0x40) != 0,
+        tcpNumber = firstOctet and 0x3F,
+        altitudeFeet = altitudeFeet,
+        positionWgs84 =
+            Wgs84Position(
+                latitudeDegrees = latitudeDegrees,
+                longitudeDegrees = longitudeDegrees,
+            ),
+        pointType = (secondOctet ushr 4) and 0x0F,
+        turnDirectionCode = (secondOctet ushr 2) and 0x03,
+        turnRadiusAvailable = (secondOctet and 0x02) != 0,
+        timeOverPointAvailable = (secondOctet and 0x01) == 0,
+        timeOverPointSeconds = readUnsignedInt24(buffer),
+        turnRadiusNm = buffer.short.toUnsignedInt() * 0.01,
+    )
+}
+
+private fun Cat062CodecSupport.writeTrajectoryIntentPoint(
+    buffer: ByteBuffer,
+    value: TrajectoryIntentPoint,
+) {
+    require(value.tcpNumber in 0..0x3F) { "aircraftDerivedData.trajectoryIntentData.tcpNumber out of range: ${value.tcpNumber}" }
+    require(value.altitudeFeet in -1500.0..150000.0) {
+        "aircraftDerivedData.trajectoryIntentData.altitudeFeet out of range: ${value.altitudeFeet}"
+    }
+    require(value.positionWgs84.latitudeDegrees in -90.0..90.0) {
+        "aircraftDerivedData.trajectoryIntentData.positionWgs84.latitudeDegrees out of range: ${value.positionWgs84.latitudeDegrees}"
+    }
+    require(value.positionWgs84.longitudeDegrees >= -180.0 && value.positionWgs84.longitudeDegrees < 180.0) {
+        "aircraftDerivedData.trajectoryIntentData.positionWgs84.longitudeDegrees out of range: ${value.positionWgs84.longitudeDegrees}"
+    }
+    require(value.pointType in 0..11) { "aircraftDerivedData.trajectoryIntentData.pointType out of range: ${value.pointType}" }
+    require(value.turnDirectionCode in 0..0x03) {
+        "aircraftDerivedData.trajectoryIntentData.turnDirectionCode out of range: ${value.turnDirectionCode}"
+    }
+    require(value.timeOverPointSeconds in 0..0xFFFFFF) {
+        "aircraftDerivedData.trajectoryIntentData.timeOverPointSeconds out of range: ${value.timeOverPointSeconds}"
+    }
+    require(value.turnRadiusNm in 0.0..655.35) {
+        "aircraftDerivedData.trajectoryIntentData.turnRadiusNm out of range: ${value.turnRadiusNm}"
+    }
+
+    var firstOctet = value.tcpNumber and 0x3F
+    if (!value.tcpNumberAvailable) firstOctet = firstOctet or 0x80
+    if (value.tcpNonCompliance) firstOctet = firstOctet or 0x40
+    buffer.put(firstOctet.toByte())
+    buffer.putSignedShort(
+        quantize(value.altitudeFeet, 10.0, "aircraftDerivedData.trajectoryIntentData.altitudeFeet"),
+        "aircraftDerivedData.trajectoryIntentData.altitudeFeet",
+    )
+    writeSignedInt24(
+        buffer,
+        quantize(
+            value.positionWgs84.latitudeDegrees,
+            WGS84_THREE_OCTET_RESOLUTION,
+            "aircraftDerivedData.trajectoryIntentData.positionWgs84.latitudeDegrees",
+        ),
+        "aircraftDerivedData.trajectoryIntentData.positionWgs84.latitudeDegrees",
+    )
+    writeSignedInt24(
+        buffer,
+        quantize(
+            value.positionWgs84.longitudeDegrees,
+            WGS84_THREE_OCTET_RESOLUTION,
+            "aircraftDerivedData.trajectoryIntentData.positionWgs84.longitudeDegrees",
+        ),
+        "aircraftDerivedData.trajectoryIntentData.positionWgs84.longitudeDegrees",
+    )
+    var secondOctet = ((value.pointType and 0x0F) shl 4) or ((value.turnDirectionCode and 0x03) shl 2)
+    if (value.turnRadiusAvailable) secondOctet = secondOctet or 0x02
+    if (!value.timeOverPointAvailable) secondOctet = secondOctet or 0x01
+    buffer.put(secondOctet.toByte())
+    writeUnsignedInt24(
+        buffer,
+        value.timeOverPointSeconds,
+        "aircraftDerivedData.trajectoryIntentData.timeOverPointSeconds",
+    )
+    buffer.putUnsignedShort(
+        quantize(value.turnRadiusNm, 0.01, "aircraftDerivedData.trajectoryIntentData.turnRadiusNm"),
+        "aircraftDerivedData.trajectoryIntentData.turnRadiusNm",
+    )
 }
 
 internal fun Cat062CodecSupport.readMeteorologicalData(buffer: ByteBuffer): MeteorologicalData {
