@@ -127,6 +127,12 @@ fields in that extent, and every earlier implied extent, must be specified.
 Write-side validation rejects partially specified extents so the model does not
 silently collapse null into spec-default zero bits.
 
+`I062/270` Target Size & Orientation also has dependent extent semantics on
+write. `orientationDegrees == null` means only the first octet with length is
+present, `orientationDegrees != null && widthMeters == null` means the first
+extent is present without the second, and `widthMeters != null` requires
+`orientationDegrees != null` because width only exists in the second extent.
+
 The supporting type files group related models by domain:
 
 - `Cat062CommonTypes.kt`

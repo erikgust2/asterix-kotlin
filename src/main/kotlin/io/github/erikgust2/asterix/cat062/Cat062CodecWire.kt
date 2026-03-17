@@ -199,6 +199,9 @@ internal fun Cat062CodecSupport.writeTargetSizeAndOrientation(
     buffer: ByteBuffer,
     value: TargetSizeAndOrientation,
 ) {
+    require(value.orientationDegrees != null || value.widthMeters == null) {
+        "targetSizeAndOrientation.widthMeters requires orientationDegrees"
+    }
     require(value.lengthMeters in 0..0x7F) { "targetSizeAndOrientation.lengthMeters out of range: ${value.lengthMeters}" }
     var octet1 = (value.lengthMeters and 0x7F) shl 1
     if (value.orientationDegrees != null) octet1 = octet1 or 0x01
