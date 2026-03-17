@@ -67,7 +67,7 @@ Shared helpers provide:
 | 10 | `I062/245` Target Identification | `Cat062CodecWireFixedItemsTest`, `Cat062CodecDataBlockTest` | All source enums, normalization, unsupported-character rejection, overlength rejection, public round-trip |
 | 11 | `I062/380` Aircraft Derived Data | `Cat062CodecAircraftDerivedDataTest` | Spec-layout assertions, per-subfield round-trips across all implemented subfields, dense round-trip, repetition coverage, selected bounds and truncation coverage, including structured trajectory intent point encoding/decoding |
 | 12 | `I062/040` Track Number | `Cat062CodecSupportTest`, `Cat062CodecDataBlockTest` | Mandatory item coverage and public round-trips |
-| 13 | `I062/080` Track Status | `Cat062CodecTrackStateTest`, `Cat062CodecDataBlockTest` | Minimal and full extents, spec byte layout, range failures, public round-trip |
+| 13 | `I062/080` Track Status | `Cat062CodecTrackStateTest`, `Cat062CodecDataBlockTest` | Minimal and full extents, explicit absent/default/non-default extent semantics, extent-completeness validation, spec byte layout, range failures, public round-trip |
 | 14 | `I062/290` System Track Update Ages | `Cat062CodecTrackStateTest` | Sparse coverage, empty and dense population coverage |
 | 15 | `I062/200` Mode Of Movement | `Cat062CodecTrackStateTest` | Spec byte layout and enum/ADF decode coverage |
 | 16 | `I062/295` Track Data Ages | `Cat062CodecTrackStateTest` | Sparse multi-octet indicator coverage, out-of-range age rejection, truncation coverage |

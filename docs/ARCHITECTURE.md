@@ -120,6 +120,13 @@ The current mandatory items enforced on write are:
 `Cat062Record` is the aggregate model for a single CAT062 record. Nearly all
 fields are nullable. Null usually means "item absent from the record".
 
+`I062/080` Track Status is the main exception to treat carefully: null is only
+used for absent extents, not for absent individual bits inside a present
+extent. Octet 1 is always required, and if any later extent is present then all
+fields in that extent, and every earlier implied extent, must be specified.
+Write-side validation rejects partially specified extents so the model does not
+silently collapse null into spec-default zero bits.
+
 The supporting type files group related models by domain:
 
 - `Cat062CommonTypes.kt`

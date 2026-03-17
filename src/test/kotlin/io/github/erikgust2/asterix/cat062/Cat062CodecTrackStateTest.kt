@@ -7,6 +7,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class Cat062CodecTrackStateTest {
@@ -92,21 +93,193 @@ class Cat062CodecTrackStateTest {
     }
 
     @Test
+    fun readTrackStatusLeavesLaterExtentFieldsNullWhenExtentsAreAbsent() {
+        val decoded = support.readTrackStatus(bufferOf(0x8A))
+
+        assertEquals(TrackStatus(mon = true, spi = false, mrh = false, src = 2, cnf = true), decoded)
+        assertNull(decoded.sim)
+        assertNull(decoded.md4)
+        assertNull(decoded.cst)
+        assertNull(decoded.sds)
+    }
+
+    @Test
+    fun readTrackStatusUsesConcreteDefaultValuesForPresentExtents() {
+        val decoded = support.readTrackStatus(bufferOf(0x8B, 0x00))
+
+        assertEquals(
+            firstExtentTrackStatus().copy(
+                sim = false,
+                tse = false,
+                tsb = false,
+                fpc = false,
+                aff = false,
+                stp = false,
+                kos = false,
+            ),
+            decoded,
+        )
+    }
+
+    @Test
+    fun readTrackStatusUsesConcreteDefaultValuesForLaterPresentExtents() {
+        val decoded = support.readTrackStatus(bufferOf(0x8B, 0x01, 0x01, 0x01, 0x00))
+
+        assertEquals(
+            firstFiveExtentsTrackStatus().copy(
+                sim = false,
+                tse = false,
+                tsb = false,
+                fpc = false,
+                aff = false,
+                stp = false,
+                kos = false,
+                ama = false,
+                md4 = 0,
+                me = false,
+                mi = false,
+                md5 = 0,
+                cst = false,
+                psr = false,
+                ssr = false,
+                mds = false,
+                ads = false,
+                suc = false,
+                aac = false,
+                sds = 0,
+                ems = 0,
+            ),
+            decoded,
+        )
+    }
+
+    @Test
+    fun writeTrackStatusRoundTripsExplicitDefaultValuesInPresentExtents() {
+        val expected =
+            firstExtentTrackStatus().copy(
+                sim = false,
+                tse = false,
+                tsb = false,
+                fpc = false,
+                aff = false,
+                stp = false,
+                kos = false,
+            )
+
+        val buffer = ByteBuffer.allocate(2)
+        support.writeTrackStatus(buffer, expected)
+
+        assertContentEquals(byteArrayOf(0x8B.toByte(), 0x00), buffer.usedBytes())
+        buffer.flip()
+        assertEquals(expected, support.readTrackStatus(buffer))
+    }
+
+    @Test
+    fun writeTrackStatusRoundTripsExplicitDefaultValuesInLaterPresentExtents() {
+        val expected =
+            firstFiveExtentsTrackStatus().copy(
+                sim = false,
+                tse = false,
+                tsb = false,
+                fpc = false,
+                aff = false,
+                stp = false,
+                kos = false,
+                ama = false,
+                md4 = 0,
+                me = false,
+                mi = false,
+                md5 = 0,
+                cst = false,
+                psr = false,
+                ssr = false,
+                mds = false,
+                ads = false,
+                suc = false,
+                aac = false,
+                sds = 0,
+                ems = 0,
+            )
+
+        val buffer = ByteBuffer.allocate(5)
+        support.writeTrackStatus(buffer, expected)
+
+        assertContentEquals(byteArrayOf(0x8B.toByte(), 0x01, 0x01, 0x01, 0x00), buffer.usedBytes())
+        buffer.flip()
+        assertEquals(expected, support.readTrackStatus(buffer))
+    }
+
+    @Test
+    fun writeTrackStatusRejectsIncompleteFirstExtent() {
+        val error =
+            assertFailsWith<IllegalArgumentException> {
+                support.writeTrackStatus(
+                    ByteBuffer.allocate(5),
+                    TrackStatus(mon = true, spi = false, mrh = false, cnf = true),
+                )
+            }
+
+        assertEquals("trackStatus.octet1 fields must all be specified", error.message)
+    }
+
+    @Test
+    fun writeTrackStatusRejectsIncompletePresentExtents() {
+        val octet2Error =
+            assertFailsWith<IllegalArgumentException> {
+                support.writeTrackStatus(
+                    ByteBuffer.allocate(5),
+                    firstExtentTrackStatus().copy(sim = true),
+                )
+            }
+        assertEquals("trackStatus.octet2 fields must all be specified when any octet2-or-later field is present", octet2Error.message)
+
+        val impliedOctet2Error =
+            assertFailsWith<IllegalArgumentException> {
+                support.writeTrackStatus(
+                    ByteBuffer.allocate(5),
+                    firstExtentTrackStatus().copy(
+                        ama = false,
+                        md4 = 0,
+                        me = false,
+                        mi = false,
+                        md5 = 0,
+                    ),
+                )
+            }
+        assertEquals(
+            "trackStatus.octet2 fields must all be specified when any octet2-or-later field is present",
+            impliedOctet2Error.message,
+        )
+    }
+
+    @Test
     fun writeTrackStatusRejectsOutOfRangeValues() {
         assertRangeFailure("trackStatus.src out of range") {
-            support.writeTrackStatus(ByteBuffer.allocate(5), TrackStatus(src = 8))
+            support.writeTrackStatus(ByteBuffer.allocate(5), firstExtentTrackStatus().copy(src = 8))
         }
         assertRangeFailure("trackStatus.md4 out of range") {
-            support.writeTrackStatus(ByteBuffer.allocate(5), TrackStatus(md4 = 4))
+            support.writeTrackStatus(
+                ByteBuffer.allocate(5),
+                firstTwoExtentsTrackStatus().copy(md4 = 4, ama = false, me = false, mi = false, md5 = 0),
+            )
         }
         assertRangeFailure("trackStatus.md5 out of range") {
-            support.writeTrackStatus(ByteBuffer.allocate(5), TrackStatus(md5 = 4))
+            support.writeTrackStatus(
+                ByteBuffer.allocate(5),
+                firstTwoExtentsTrackStatus().copy(ama = false, md4 = 0, me = false, mi = false, md5 = 4),
+            )
         }
         assertRangeFailure("trackStatus.sds out of range") {
-            support.writeTrackStatus(ByteBuffer.allocate(5), TrackStatus(sds = 4))
+            support.writeTrackStatus(
+                ByteBuffer.allocate(5),
+                firstFourExtentsTrackStatus().copy(sds = 4, ems = 0),
+            )
         }
         assertRangeFailure("trackStatus.ems out of range") {
-            support.writeTrackStatus(ByteBuffer.allocate(5), TrackStatus(ems = 8))
+            support.writeTrackStatus(
+                ByteBuffer.allocate(5),
+                firstFourExtentsTrackStatus().copy(sds = 0, ems = 8),
+            )
         }
     }
 
@@ -198,3 +371,38 @@ class Cat062CodecTrackStateTest {
         }
     }
 }
+
+private fun firstExtentTrackStatus(): TrackStatus = TrackStatus(mon = true, spi = false, mrh = false, src = 2, cnf = true)
+
+private fun firstTwoExtentsTrackStatus(): TrackStatus =
+    firstExtentTrackStatus().copy(
+        sim = false,
+        tse = false,
+        tsb = false,
+        fpc = false,
+        aff = false,
+        stp = false,
+        kos = false,
+    )
+
+private fun firstFourExtentsTrackStatus(): TrackStatus =
+    firstTwoExtentsTrackStatus().copy(
+        ama = false,
+        md4 = 0,
+        me = false,
+        mi = false,
+        md5 = 0,
+        cst = false,
+        psr = false,
+        ssr = false,
+        mds = false,
+        ads = false,
+        suc = false,
+        aac = false,
+    )
+
+private fun firstFiveExtentsTrackStatus(): TrackStatus =
+    firstFourExtentsTrackStatus().copy(
+        sds = 0,
+        ems = 0,
+    )
