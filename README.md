@@ -142,6 +142,10 @@ category, selected-altitude source, and ADS-B / Mode-S status fields, the
 public model now uses typed enums or sealed `Known` / `Unknown(code)` values
 instead of raw integers.
 
+Sparse code tables that may grow in future revisions, such as trajectory
+intent point type in `I062/380`, use sealed `Known` / `Unknown(code)` models
+so unknown decode values can still round-trip losslessly.
+
 ## Scope
 
 This repository currently only supports CAT062 System Track Data, and is not yet a general ASTERIX

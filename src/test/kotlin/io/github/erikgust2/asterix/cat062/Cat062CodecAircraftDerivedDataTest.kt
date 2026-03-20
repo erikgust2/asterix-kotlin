@@ -43,6 +43,10 @@ class Cat062CodecAircraftDerivedDataTest {
             timeOverPointSeconds = 86_399,
             turnRadiusNm = 0.0,
         )
+    private val unknownTrajectoryIntentPoint =
+        trajectoryIntentPoint.copy(
+            pointType = TrajectoryIntentPointType.Unknown(12),
+        )
 
     @Test
     fun aircraftDerivedDataUsesSplitAirspeedFieldsAndAdsbStatus() {
@@ -508,6 +512,9 @@ class Cat062CodecAircraftDerivedDataTest {
     fun aircraftDerivedTypedCodeFamiliesMapAndPreserveUnknownValues() {
         assertEquals(SelectedAltitudeSource.FCU_MCP_SELECTED_ALTITUDE, SelectedAltitudeSource.fromCode(2))
         assertEquals(TrajectoryIntentPointType.RF_LEG, TrajectoryIntentPointType.fromCode(6))
+        listOf(12, 13, 14, 15).forEach { code ->
+            assertEquals(TrajectoryIntentPointType.Unknown(code), TrajectoryIntentPointType.fromCode(code))
+        }
         assertEquals(TurnDirection.LEFT, TurnDirection.fromCode(2))
         assertEquals(AdsbAcasStatus.ACAS_OPERATIONAL, AdsbAcasStatus.fromCode(2))
         assertEquals(MultipleNavigationalAidStatus.MULTIPLE_NAVIGATIONAL_AIDS_NOT_OPERATING, MultipleNavigationalAidStatus.fromCode(1))
@@ -538,6 +545,53 @@ class Cat062CodecAircraftDerivedDataTest {
             buffer.flip()
             assertEquals(expected, support.readAircraftDerivedData(buffer))
         }
+    }
+
+    @Test
+    fun aircraftDerivedDataPreservesUnknownTrajectoryIntentPointTypeFromWire() {
+        val bytes =
+            byteArrayOfInts(
+                0x01,
+                0x40,
+                0x01,
+                0x45,
+                0x00,
+                0x64,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0xCA,
+                0x00,
+                0x01,
+                0x02,
+                0x04,
+                0xD2,
+            )
+
+        val decoded = support.readAircraftDerivedData(ByteBuffer.wrap(bytes))
+
+        assertEquals(AircraftDerivedData(trajectoryIntentData = listOf(unknownTrajectoryIntentPoint)), decoded)
+        val encoded = ByteBuffer.allocate(32)
+        support.writeAircraftDerivedData(encoded, decoded)
+        assertContentEquals(bytes, encoded.usedBytes())
+    }
+
+    @Test
+    fun publicCodecRoundTripsUnknownTrajectoryIntentPointType() {
+        val expected =
+            minimalValidRecord().copy(
+                aircraftDerivedData =
+                    AircraftDerivedData(
+                        trajectoryIntentData = listOf(unknownTrajectoryIntentPoint),
+                    ),
+            )
+
+        val decoded = Cat062Codec.readRecord(Cat062Codec.writeRecord(expected))
+
+        assertEquals(expected, decoded)
     }
 
     @Test

@@ -58,6 +58,8 @@ Typed-code coverage policy:
 - closed code tables should have direct `fromCode(...)` coverage
 - sealed `Known` / `Unknown(code)` families should prove unknown decode and
   lossless re-encode
+- sparse code tables promoted from enums to sealed families should keep known
+  constant aliases stable while adding explicit unknown-wire coverage
 - golden vectors should stay byte-identical after model typing changes
 
 ## Coverage Matrix
@@ -73,7 +75,7 @@ Typed-code coverage policy:
 | 8 | `I062/210` Calculated Acceleration (Cartesian) | `Cat062CodecWireFixedItemsTest` | Direct wire round-trip coverage |
 | 9 | `I062/060` Track Mode 3/A Code | `Cat062CodecGoldenVectorTest`, `Cat062CodecWireFixedItemsTest`, `Cat062CodecSupportTest` | Dense-record literal bytes, spec-layout assertion, and public record round-trip |
 | 10 | `I062/245` Target Identification | `Cat062CodecGoldenVectorTest`, `Cat062CodecWireFixedItemsTest`, `Cat062CodecDataBlockTest` | Dense-record literal bytes, all source enums, normalization, unsupported-character rejection, overlength rejection, public round-trip |
-| 11 | `I062/380` Aircraft Derived Data | `Cat062CodecAircraftDerivedDataTest` | Spec-layout assertions, per-subfield round-trips across all implemented subfields, dense round-trip, repetition coverage, selected bounds and truncation coverage, structured trajectory intent point encoding/decoding, typed-code mapping checks, and unknown-value round-trip coverage for forward-compatible Mode-S / emitter categories |
+| 11 | `I062/380` Aircraft Derived Data | `Cat062CodecAircraftDerivedDataTest` | Spec-layout assertions, per-subfield round-trips across all implemented subfields, dense round-trip, repetition coverage, selected bounds and truncation coverage, structured trajectory intent point encoding/decoding, typed-code mapping checks, and unknown-value round-trip coverage for forward-compatible trajectory-intent, Mode-S, and emitter-category codes |
 | 12 | `I062/040` Track Number | `Cat062CodecGoldenVectorTest`, `Cat062CodecSupportTest`, `Cat062CodecDataBlockTest` | Literal minimal and dense record/block vectors, mandatory item coverage, and public round-trips |
 | 13 | `I062/080` Track Status | `Cat062CodecGoldenVectorTest`, `Cat062CodecTrackStateTest`, `Cat062CodecDataBlockTest` | Literal minimal and dense record/block vectors, minimal and full extents, explicit absent/default/non-default extent semantics, extent-completeness validation, spec byte layout, typed-code mapping coverage, and public round-trip |
 | 14 | `I062/290` System Track Update Ages | `Cat062CodecTrackStateTest` | Sparse coverage, empty and dense population coverage |

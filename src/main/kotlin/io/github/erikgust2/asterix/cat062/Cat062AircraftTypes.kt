@@ -46,25 +46,45 @@ data class TrajectoryIntentPoint(
     val turnRadiusNm: Double,
 )
 
-enum class TrajectoryIntentPointType(
-    val code: Int,
-) {
-    UNKNOWN(0),
-    FLY_BY_WAYPOINT(1),
-    FLY_OVER_WAYPOINT(2),
-    HOLD_PATTERN(3),
-    PROCEDURE_HOLD(4),
-    PROCEDURE_TURN(5),
-    RF_LEG(6),
-    TOP_OF_CLIMB(7),
-    TOP_OF_DESCENT(8),
-    START_OF_LEVEL(9),
-    CROSS_OVER_ALTITUDE(10),
-    TRANSITION_ALTITUDE(11),
-    ;
+sealed interface TrajectoryIntentPointType {
+    val code: Int
+
+    enum class Known(
+        override val code: Int,
+    ) : TrajectoryIntentPointType {
+        UNKNOWN(0),
+        FLY_BY_WAYPOINT(1),
+        FLY_OVER_WAYPOINT(2),
+        HOLD_PATTERN(3),
+        PROCEDURE_HOLD(4),
+        PROCEDURE_TURN(5),
+        RF_LEG(6),
+        TOP_OF_CLIMB(7),
+        TOP_OF_DESCENT(8),
+        START_OF_LEVEL(9),
+        CROSS_OVER_ALTITUDE(10),
+        TRANSITION_ALTITUDE(11),
+    }
+
+    data class Unknown(
+        override val code: Int,
+    ) : TrajectoryIntentPointType
 
     companion object {
-        fun fromCode(code: Int): TrajectoryIntentPointType = entries.first { it.code == code }
+        val UNKNOWN: TrajectoryIntentPointType = Known.UNKNOWN
+        val FLY_BY_WAYPOINT: TrajectoryIntentPointType = Known.FLY_BY_WAYPOINT
+        val FLY_OVER_WAYPOINT: TrajectoryIntentPointType = Known.FLY_OVER_WAYPOINT
+        val HOLD_PATTERN: TrajectoryIntentPointType = Known.HOLD_PATTERN
+        val PROCEDURE_HOLD: TrajectoryIntentPointType = Known.PROCEDURE_HOLD
+        val PROCEDURE_TURN: TrajectoryIntentPointType = Known.PROCEDURE_TURN
+        val RF_LEG: TrajectoryIntentPointType = Known.RF_LEG
+        val TOP_OF_CLIMB: TrajectoryIntentPointType = Known.TOP_OF_CLIMB
+        val TOP_OF_DESCENT: TrajectoryIntentPointType = Known.TOP_OF_DESCENT
+        val START_OF_LEVEL: TrajectoryIntentPointType = Known.START_OF_LEVEL
+        val CROSS_OVER_ALTITUDE: TrajectoryIntentPointType = Known.CROSS_OVER_ALTITUDE
+        val TRANSITION_ALTITUDE: TrajectoryIntentPointType = Known.TRANSITION_ALTITUDE
+
+        fun fromCode(code: Int): TrajectoryIntentPointType = Known.entries.firstOrNull { it.code == code } ?: Unknown(code)
     }
 }
 
