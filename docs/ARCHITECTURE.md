@@ -65,16 +65,25 @@ The main files and responsibilities are:
 
 The public entry point is `Cat062Codec`.
 
-It exposes four operations:
+It exposes eight operations:
 
 - `readDataBlock(buffer: ByteBuffer): Cat062DataBlock`
+- `readDataBlock(bytes: ByteArray): Cat062DataBlock`
 - `writeDataBlock(buffer: ByteBuffer, block: Cat062DataBlock)`
+- `writeDataBlock(block: Cat062DataBlock): ByteArray`
 - `readRecord(buffer: ByteBuffer): Cat062Record`
+- `readRecord(bytes: ByteArray): Cat062Record`
 - `writeRecord(buffer: ByteBuffer, record: Cat062Record)`
+- `writeRecord(record: Cat062Record): ByteArray`
 
-The API is `ByteBuffer`-oriented. The library does not currently expose
-stream adapters or higher-level builders. It does provide `RawBytes` for
-length-prefixed binary payloads that need value semantics.
+The API is still `ByteBuffer`-oriented at its core. The `ByteArray` overloads
+are convenience wrappers around that core path. Read-side wrappers allocate a
+temporary `ByteBuffer` object but do not copy the input bytes; write-side
+wrappers allocate an internal `ByteBuffer` and the returned `ByteArray`, and
+may retry with a larger buffer for bigger payloads. Performance-sensitive code
+should continue using the explicit `ByteBuffer` methods. The library does not
+currently expose stream adapters or higher-level builders. It does provide
+`RawBytes` for length-prefixed binary payloads that need value semantics.
 
 ## Data Flow
 
@@ -226,7 +235,7 @@ The test suite is split by codec area:
 
 The test suite covers:
 
-- public record and data-block round trips
+- public record and data-block round trips through both `ByteBuffer` and `ByteArray` entry points
 - FSPEC bit layout and FRN dispatch behavior
 - spec-layout assertions for fixed and compound items
 - malformed-input and truncation behavior

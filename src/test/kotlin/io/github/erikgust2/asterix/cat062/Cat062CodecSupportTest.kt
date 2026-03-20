@@ -47,6 +47,20 @@ class Cat062CodecSupportTest {
     }
 
     @Test
+    fun publicByteArrayRecordConvenienceApiRoundTripsLargeRecord() {
+        val expected =
+            minimalValidRecord(timeOfTrackInformationSeconds = 1024.0).copy(
+                serviceIdentification = 4,
+                reservedExpansionField = ByteArray(254) { index -> index.toByte() }.toRawBytes(),
+                specialPurposeField = ByteArray(254) { index -> (255 - index).toByte() }.toRawBytes(),
+            )
+
+        val decoded = Cat062Codec.readRecord(Cat062Codec.writeRecord(expected))
+
+        assertEquals(expected, decoded)
+    }
+
+    @Test
     fun writeRecordRequiresEachMandatoryCat062Item() {
         val testCases =
             listOf(
@@ -64,6 +78,16 @@ class Cat062CodecSupportTest {
                 }
             assertEquals(expectedMessage, error.message)
         }
+    }
+
+    @Test
+    fun writeRecordByteArrayConveniencePreservesMandatoryItemValidation() {
+        val error =
+            assertFailsWith<IllegalArgumentException> {
+                Cat062Codec.writeRecord(minimalValidRecord().copy(trackStatus = null))
+            }
+
+        assertEquals("CAT062 record missing mandatory I062/080 trackStatus", error.message)
     }
 
     @Test
@@ -85,6 +109,16 @@ class Cat062CodecSupportTest {
         val error =
             assertFailsWith<IllegalStateException> {
                 Cat062Codec.readRecord(bufferOf(0x40))
+            }
+
+        assertEquals("Unsupported FRN 2 in CAT062", error.message)
+    }
+
+    @Test
+    fun readRecordByteArrayConvenienceRejectsUnsupportedFrnInFirstFspecExtent() {
+        val error =
+            assertFailsWith<IllegalStateException> {
+                Cat062Codec.readRecord(byteArrayOf(0x40.toByte()))
             }
 
         assertEquals("Unsupported FRN 2 in CAT062", error.message)

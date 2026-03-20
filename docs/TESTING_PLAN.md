@@ -123,6 +123,14 @@ Assertion policy:
 - exact messages are asserted for explicit `require(...)` failures
 - raw truncation paths are asserted by exception type
 
+Public API note:
+
+- `Cat062Codec` is covered through both `ByteBuffer` and `ByteArray`
+  convenience entry points for record and data-block round trips
+- representative validation and decode failures are asserted through the
+  `ByteArray` overloads so they stay behaviorally aligned with the
+  `ByteBuffer` core path
+
 ## Verification
 
 Run:
