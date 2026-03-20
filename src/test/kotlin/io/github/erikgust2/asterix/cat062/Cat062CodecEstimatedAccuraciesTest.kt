@@ -1,10 +1,8 @@
 package io.github.erikgust2.asterix.cat062
 
 import org.junit.Test
-import java.nio.BufferUnderflowException
 import java.nio.ByteBuffer
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 
 class Cat062CodecEstimatedAccuraciesTest {
@@ -151,7 +149,7 @@ class Cat062CodecEstimatedAccuraciesTest {
                     )
                 }.usedBytes()
 
-        assertFailsWith<BufferUnderflowException> {
+        assertIllegalArgumentFailure("Truncated I062/500 estimatedAccuracies.trackVelocity payload") {
             support.readEstimatedAccuracies(ByteBuffer.wrap(truncated(bytes)))
         }
     }

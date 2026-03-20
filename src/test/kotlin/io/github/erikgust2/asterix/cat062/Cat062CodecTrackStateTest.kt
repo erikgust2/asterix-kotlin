@@ -1,7 +1,6 @@
 package io.github.erikgust2.asterix.cat062
 
 import org.junit.Test
-import java.nio.BufferUnderflowException
 import java.nio.ByteBuffer
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -219,7 +218,7 @@ class Cat062CodecTrackStateTest {
                 )
             }
 
-        assertEquals("trackStatus.octet1 fields must all be specified", error.message)
+        assertEquals("I062/080 trackStatus.octet1 fields must all be specified", error.message)
     }
 
     @Test
@@ -231,7 +230,10 @@ class Cat062CodecTrackStateTest {
                     firstExtentTrackStatus().copy(sim = true),
                 )
             }
-        assertEquals("trackStatus.octet2 fields must all be specified when any octet2-or-later field is present", octet2Error.message)
+        assertEquals(
+            "I062/080 trackStatus.octet2 fields must all be specified when any octet2-or-later field is present",
+            octet2Error.message,
+        )
 
         val impliedOctet2Error =
             assertFailsWith<IllegalArgumentException> {
@@ -247,7 +249,7 @@ class Cat062CodecTrackStateTest {
                 )
             }
         assertEquals(
-            "trackStatus.octet2 fields must all be specified when any octet2-or-later field is present",
+            "I062/080 trackStatus.octet2 fields must all be specified when any octet2-or-later field is present",
             impliedOctet2Error.message,
         )
     }
@@ -344,7 +346,7 @@ class Cat062CodecTrackStateTest {
                     )
                 }.usedBytes()
 
-        assertFailsWith<BufferUnderflowException> {
+        assertIllegalArgumentFailure("Truncated I062/295 trackDataAges.MAC payload") {
             support.readTrackDataAges(ByteBuffer.wrap(truncated(bytes)))
         }
     }

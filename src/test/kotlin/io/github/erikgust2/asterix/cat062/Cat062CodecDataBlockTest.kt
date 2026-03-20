@@ -122,4 +122,27 @@ class Cat062CodecDataBlockTest {
 
         assertTrue(error.message?.contains("CAT062 block parsing ended at") == true)
     }
+
+    @Test
+    fun readDataBlockPrefixesRecordOrdinalOnNestedRecordFailures() {
+        val firstRecord = writeRecordBytes(minimalValidRecord())
+        val secondRecord = byteArrayOf(0x80.toByte(), 0x01)
+        val totalLength = 3 + firstRecord.size + secondRecord.size
+        val bytes =
+            ByteBuffer
+                .allocate(totalLength)
+                .also {
+                    it.put(Cat062Codec.CATEGORY.toByte())
+                    it.putShort(totalLength.toShort())
+                    it.put(firstRecord)
+                    it.put(secondRecord)
+                }.usedBytes()
+
+        val error =
+            assertFailsWith<IllegalArgumentException> {
+                Cat062Codec.readDataBlock(ByteBuffer.wrap(bytes))
+            }
+
+        assertTrue(error.message?.contains("CAT062 data block record 2: Truncated I062/010 dataSourceIdentifier payload") == true)
+    }
 }

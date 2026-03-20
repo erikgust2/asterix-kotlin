@@ -134,7 +134,9 @@ branches re-encode their original wire values unchanged.
 Assertion policy:
 
 - exact messages are asserted for explicit `require(...)` failures
-- raw truncation paths are asserted by exception type
+- representative truncation paths are asserted as contextual
+  `IllegalArgumentException` failures that include CAT062 item references
+  and, for compound items, subfield context where available
 
 Public API note:
 
@@ -143,6 +145,8 @@ Public API note:
 - representative validation and decode failures are asserted through the
   `ByteArray` overloads so they stay behaviorally aligned with the
   `ByteBuffer` core path
+- nested data-block decode failures include the one-based record ordinal in
+  the asserted public message
 
 ## Verification
 

@@ -27,7 +27,14 @@ object Cat062Codec {
         }
         val records = mutableListOf<Cat062Record>()
         while (buffer.position() < blockEnd) {
-            records += readRecord(buffer)
+            val recordNumber = records.size + 1
+            try {
+                records += readRecord(buffer)
+            } catch (error: IllegalArgumentException) {
+                throw IllegalArgumentException("CAT062 data block record $recordNumber: ${error.message}", error)
+            } catch (error: IllegalStateException) {
+                throw IllegalStateException("CAT062 data block record $recordNumber: ${error.message}", error)
+            }
         }
         require(buffer.position() == blockEnd) { "CAT062 block parsing ended at ${buffer.position()} instead of $blockEnd" }
         return Cat062DataBlock(records)

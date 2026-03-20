@@ -1,10 +1,8 @@
 package io.github.erikgust2.asterix.cat062
 
 import org.junit.Test
-import java.nio.BufferUnderflowException
 import java.nio.ByteBuffer
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -131,7 +129,7 @@ class Cat062CodecMode5Test {
                     )
                 }.usedBytes()
 
-        assertFailsWith<BufferUnderflowException> {
+        assertIllegalArgumentFailure("Truncated I062/110 mode5DataReports.positionWgs84 payload") {
             support.readMode5DataReports(ByteBuffer.wrap(truncated(bytes)))
         }
     }

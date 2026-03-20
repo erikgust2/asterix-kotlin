@@ -1,7 +1,6 @@
 package io.github.erikgust2.asterix.cat062
 
 import org.junit.Test
-import java.nio.BufferUnderflowException
 import java.nio.ByteBuffer
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -101,7 +100,7 @@ class Cat062CodecSupportTest {
                 )
             }
 
-        assertEquals("targetSizeAndOrientation.widthMeters requires orientationDegrees", error.message)
+        assertEquals("I062/270 targetSizeAndOrientation.widthMeters requires orientationDegrees", error.message)
     }
 
     @Test
@@ -157,14 +156,14 @@ class Cat062CodecSupportTest {
 
     @Test
     fun readRecordRejectsTruncatedFspecContinuation() {
-        assertFailsWith<BufferUnderflowException> {
+        assertIllegalArgumentFailure("Truncated CAT062 FSPEC payload") {
             Cat062Codec.readRecord(bufferOf(0x01))
         }
     }
 
     @Test
     fun readRecordRejectsTruncatedFieldPayload() {
-        assertFailsWith<BufferUnderflowException> {
+        assertIllegalArgumentFailure("Truncated I062/010 dataSourceIdentifier payload") {
             Cat062Codec.readRecord(bufferOf(0x80, 0x01))
         }
     }
@@ -178,7 +177,7 @@ class Cat062CodecSupportTest {
                 ),
             )
 
-        assertFailsWith<BufferUnderflowException> {
+        assertIllegalArgumentFailure("Truncated reservedExpansionField payload") {
             Cat062Codec.readRecord(ByteBuffer.wrap(truncated(bytes)))
         }
     }
@@ -243,7 +242,7 @@ class Cat062CodecSupportTest {
                     writeStandaloneRecordBytes(
                         3 to writeFieldBytes { it.putUnsignedByte(4, "serviceIdentification") },
                     ),
-                "I062/070 timeOfTrackInformation" to
+                "I062/070 timeOfTrackInformationSeconds" to
                     writeStandaloneRecordBytes(
                         4 to writeFieldBytes { support.writeUnsignedInt24(it, 0x001000, "timeOfTrackInformationSeconds") },
                     ),
@@ -363,7 +362,7 @@ class Cat062CodecSupportTest {
             )
 
         testCases.forEach { (label, bytes) ->
-            assertFailsWith<BufferUnderflowException>(label) {
+            assertIllegalArgumentFailure("Truncated $label payload") {
                 Cat062Codec.readRecord(ByteBuffer.wrap(truncated(bytes)))
             }
         }

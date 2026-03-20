@@ -222,6 +222,10 @@ The codebase follows a few important conventions:
 - Compound subfield presence is encoded and decoded through helper functions in
   `Cat062CodecWire.kt`, then composed by the focused domain codec files.
 - Field-specific validation is usually enforced at write time with `require(...)`.
+- Decode and validation failures are enriched close to record/item dispatch so
+  public errors carry CAT062 item references such as `I062/080`; compound
+  codec entry points add subfield context where that materially improves
+  truncation diagnostics.
 - Reads are mostly permissive about default values and absent optional fields.
 - Writes are generally driven by nullability: non-null fields become present
   items or subfields.

@@ -68,6 +68,14 @@ internal fun assertRangeFailure(
     assertTrue(error.message?.contains(expectedMessagePart) == true, "Expected '$expectedMessagePart' in '${error.message}'")
 }
 
+internal fun assertIllegalArgumentFailure(
+    expectedMessagePart: String,
+    block: () -> Unit,
+) {
+    val error = assertFailsWith<IllegalArgumentException>(block = block)
+    assertTrue(error.message?.contains(expectedMessagePart) == true, "Expected '$expectedMessagePart' in '${error.message}'")
+}
+
 private fun writeFspecForTest(
     buffer: ByteBuffer,
     frns: List<Int>,
