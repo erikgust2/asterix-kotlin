@@ -38,7 +38,7 @@ class Cat062CodecMeasuredInformationTest {
         assertFalse(lastMode3a.validated)
         assertTrue(lastMode3a.garbled)
         assertTrue(lastMode3a.smoothed)
-        assertEquals(3, assertNotNull(decoded.reportType).typ)
+        assertEquals(MeasuredReportType.SSR_PSR_DETECTION, assertNotNull(decoded.reportType).typ)
         assertTrue(assertNotNull(decoded.reportType).rab)
     }
 
@@ -53,7 +53,9 @@ class Cat062CodecMeasuredInformationTest {
                 MeasuredInformation(
                     lastMeasuredMode3aCode = MeasuredMode3ACode(code = 0x640, validated = false, garbled = true, smoothed = true),
                 ),
-                MeasuredInformation(reportType = ReportType(typ = 3, simulated = true, rab = true, testTarget = false)),
+                MeasuredInformation(
+                    reportType = ReportType(typ = MeasuredReportType.SSR_PSR_DETECTION, simulated = true, rab = true, testTarget = false),
+                ),
             )
 
         cases.forEach { expected ->
@@ -73,7 +75,7 @@ class Cat062CodecMeasuredInformationTest {
                 heightFeet = 3000.0,
                 lastMeasuredModeCCode = MeasuredModeCCode(validated = true, garbled = false, flightLevel = 120.0),
                 lastMeasuredMode3aCode = MeasuredMode3ACode(code = 0x640, validated = false, garbled = true, smoothed = true),
-                reportType = ReportType(typ = 3, simulated = true, rab = true, testTarget = false),
+                reportType = ReportType(typ = MeasuredReportType.SSR_PSR_DETECTION, simulated = true, rab = true, testTarget = false),
             )
 
         val buffer = ByteBuffer.allocate(32)
@@ -84,13 +86,19 @@ class Cat062CodecMeasuredInformationTest {
     }
 
     @Test
-    fun writeMeasuredInformationRejectsReportTypeAndMode3aOverflow() {
-        assertRangeFailure("measuredInformation.detectedTargetType.typ out of range") {
-            support.writeMeasuredInformation(
-                ByteBuffer.allocate(16),
-                MeasuredInformation(reportType = ReportType(typ = 8, simulated = false, rab = false, testTarget = false)),
-            )
-        }
+    fun measuredReportTypeMapsSpecCodes() {
+        assertEquals(MeasuredReportType.NO_DETECTION, MeasuredReportType.fromCode(0))
+        assertEquals(MeasuredReportType.SINGLE_PSR_DETECTION, MeasuredReportType.fromCode(1))
+        assertEquals(MeasuredReportType.SINGLE_SSR_DETECTION, MeasuredReportType.fromCode(2))
+        assertEquals(MeasuredReportType.SSR_PSR_DETECTION, MeasuredReportType.fromCode(3))
+        assertEquals(MeasuredReportType.SINGLE_MODES_ALL_CALL, MeasuredReportType.fromCode(4))
+        assertEquals(MeasuredReportType.SINGLE_MODES_ROLL_CALL, MeasuredReportType.fromCode(5))
+        assertEquals(MeasuredReportType.MODES_ALL_CALL_PSR, MeasuredReportType.fromCode(6))
+        assertEquals(MeasuredReportType.MODES_ROLL_CALL_PSR, MeasuredReportType.fromCode(7))
+    }
+
+    @Test
+    fun writeMeasuredInformationRejectsMode3aOverflow() {
         assertRangeFailure("measuredInformation.lastMeasuredMode3aCode.code out of range") {
             support.writeMeasuredInformation(
                 ByteBuffer.allocate(16),

@@ -24,7 +24,7 @@ class Cat062CodecFlightPlanTest {
         buffer.flip()
 
         val decoded = support.readFlightPlanRelatedData(buffer)
-        assertEquals(2, assertNotNull(decoded.ifpsFlightId).typeCode)
+        assertEquals(IfpsFlightIdType.UNIT_2_INTERNAL_FLIGHT_NUMBER, assertNotNull(decoded.ifpsFlightId).typeCode)
         assertEquals(0x00123456, assertNotNull(decoded.ifpsFlightId).number)
         assertEquals(0x750, assertNotNull(decoded.preEmergencyMode3a).code)
         assertTrue(assertNotNull(decoded.preEmergencyMode3a).valid)
@@ -86,8 +86,18 @@ class Cat062CodecFlightPlanTest {
             listOf(
                 FlightPlanRelatedData(tag = DataSourceIdentifier(1, 2)),
                 FlightPlanRelatedData(callsign = "SAS123"),
-                FlightPlanRelatedData(ifpsFlightId = IfpsFlightId(typeCode = 2, number = 0x00123456)),
-                FlightPlanRelatedData(flightCategory = FlightCategory(gatOatCode = 1, flightRulesCode = 2, rvsmStatus = 3, hpr = true)),
+                FlightPlanRelatedData(
+                    ifpsFlightId = IfpsFlightId(typeCode = IfpsFlightIdType.UNIT_2_INTERNAL_FLIGHT_NUMBER, number = 0x00123456),
+                ),
+                FlightPlanRelatedData(
+                    flightCategory =
+                        FlightCategory(
+                            gatOatCode = GatOatType.GENERAL_AIR_TRAFFIC,
+                            flightRulesCode = FlightRulesType.NOT_APPLICABLE,
+                            rvsmStatus = RvsmStatus.NOT_APPROVED,
+                            hpr = true,
+                        ),
+                ),
                 FlightPlanRelatedData(aircraftType = "A320"),
                 FlightPlanRelatedData(wakeTurbulenceCategory = "M"),
                 FlightPlanRelatedData(departureAerodrome = "ESSA"),
@@ -108,7 +118,9 @@ class Cat062CodecFlightPlanTest {
                         ),
                 ),
                 FlightPlanRelatedData(aircraftStand = "A12"),
-                FlightPlanRelatedData(standStatus = StandStatus(emp = 2, avl = 1)),
+                FlightPlanRelatedData(
+                    standStatus = StandStatus(emp = StandOccupancyStatus.UNKNOWN, avl = StandAvailabilityStatus.NOT_AVAILABLE),
+                ),
                 FlightPlanRelatedData(standardInstrumentDeparture = "NIDIS1A"),
                 FlightPlanRelatedData(standardInstrumentArrival = "LAM3A"),
                 FlightPlanRelatedData(preEmergencyMode3a = PreEmergencyMode3a(valid = true, code = 0x750)),
@@ -129,8 +141,14 @@ class Cat062CodecFlightPlanTest {
             FlightPlanRelatedData(
                 tag = DataSourceIdentifier(1, 2),
                 callsign = "SAS123",
-                ifpsFlightId = IfpsFlightId(typeCode = 2, number = 0x00123456),
-                flightCategory = FlightCategory(gatOatCode = 1, flightRulesCode = 2, rvsmStatus = 3, hpr = true),
+                ifpsFlightId = IfpsFlightId(typeCode = IfpsFlightIdType.UNIT_2_INTERNAL_FLIGHT_NUMBER, number = 0x00123456),
+                flightCategory =
+                    FlightCategory(
+                        gatOatCode = GatOatType.GENERAL_AIR_TRAFFIC,
+                        flightRulesCode = FlightRulesType.NOT_APPLICABLE,
+                        rvsmStatus = RvsmStatus.NOT_APPROVED,
+                        hpr = true,
+                    ),
                 aircraftType = "A320",
                 wakeTurbulenceCategory = "M",
                 departureAerodrome = "ESSA",
@@ -144,7 +162,7 @@ class Cat062CodecFlightPlanTest {
                         TimeOfDepartureArrival(typeCode = 8, day = RelativeDay.TOMORROW, hour = 9, minute = 45, second = 5),
                     ),
                 aircraftStand = "A12",
-                standStatus = StandStatus(emp = 2, avl = 1),
+                standStatus = StandStatus(emp = StandOccupancyStatus.UNKNOWN, avl = StandAvailabilityStatus.NOT_AVAILABLE),
                 standardInstrumentDeparture = "NIDIS1A",
                 standardInstrumentArrival = "LAM3A",
                 preEmergencyMode3a = PreEmergencyMode3a(valid = true, code = 0x750),
@@ -171,26 +189,15 @@ class Cat062CodecFlightPlanTest {
 
     @Test
     fun writeFlightPlanRelatedDataRejectsFieldRangesAndAsciiViolations() {
-        assertRangeFailure("flightPlanRelatedData.ifpsFlightId.typeCode out of range") {
-            support.writeFlightPlanRelatedData(
-                ByteBuffer.allocate(32),
-                FlightPlanRelatedData(ifpsFlightId = IfpsFlightId(typeCode = 4, number = 1)),
-            )
-        }
-        assertRangeFailure("flightPlanRelatedData.flightCategory.gatOatCode out of range") {
-            support.writeFlightPlanRelatedData(
-                ByteBuffer.allocate(32),
-                FlightPlanRelatedData(
-                    flightCategory = FlightCategory(gatOatCode = 4, flightRulesCode = 0, rvsmStatus = 0, hpr = false),
-                ),
-            )
-        }
-        assertRangeFailure("flightPlanRelatedData.standStatus.emp out of range") {
-            support.writeFlightPlanRelatedData(
-                ByteBuffer.allocate(32),
-                FlightPlanRelatedData(standStatus = StandStatus(emp = 4, avl = 0)),
-            )
-        }
+        assertEquals(IfpsFlightIdType.PLAN_NUMBER, IfpsFlightIdType.fromCode(0))
+        assertEquals(IfpsFlightIdType.UNIT_1_INTERNAL_FLIGHT_NUMBER, IfpsFlightIdType.fromCode(1))
+        assertEquals(IfpsFlightIdType.UNIT_2_INTERNAL_FLIGHT_NUMBER, IfpsFlightIdType.fromCode(2))
+        assertEquals(IfpsFlightIdType.UNIT_3_INTERNAL_FLIGHT_NUMBER, IfpsFlightIdType.fromCode(3))
+        assertEquals(GatOatType.GENERAL_AIR_TRAFFIC, GatOatType.fromCode(1))
+        assertEquals(FlightRulesType.NOT_APPLICABLE, FlightRulesType.fromCode(2))
+        assertEquals(RvsmStatus.NOT_APPROVED, RvsmStatus.fromCode(3))
+        assertEquals(StandOccupancyStatus.UNKNOWN, StandOccupancyStatus.fromCode(2))
+        assertEquals(StandAvailabilityStatus.NOT_AVAILABLE, StandAvailabilityStatus.fromCode(1))
         assertRangeFailure("flightPlanRelatedData.preEmergencyMode3a.code out of range") {
             support.writeFlightPlanRelatedData(
                 ByteBuffer.allocate(32),

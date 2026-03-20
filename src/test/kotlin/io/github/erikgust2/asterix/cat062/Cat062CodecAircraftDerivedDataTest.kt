@@ -18,8 +18,8 @@ class Cat062CodecAircraftDerivedDataTest {
             tcpNumber = 5,
             altitudeFeet = 1_000.0,
             positionWgs84 = Wgs84Position(0.0, 0.0),
-            pointType = 6,
-            turnDirectionCode = 2,
+            pointType = TrajectoryIntentPointType.RF_LEG,
+            turnDirectionCode = TurnDirection.LEFT,
             turnRadiusAvailable = true,
             timeOverPointAvailable = true,
             timeOverPointSeconds = 258,
@@ -36,8 +36,8 @@ class Cat062CodecAircraftDerivedDataTest {
                     12 * WGS84_THREE_OCTET_RESOLUTION,
                     -7 * WGS84_THREE_OCTET_RESOLUTION,
                 ),
-            pointType = 8,
-            turnDirectionCode = 3,
+            pointType = TrajectoryIntentPointType.TOP_OF_DESCENT,
+            turnDirectionCode = TurnDirection.NO_TURN,
             turnRadiusAvailable = false,
             timeOverPointAvailable = false,
             timeOverPointSeconds = 86_399,
@@ -58,11 +58,11 @@ class Cat062CodecAircraftDerivedDataTest {
         buffer.flip()
 
         val decoded = support.readAircraftDerivedData(buffer)
-        assertEquals(2, assertNotNull(decoded.adsbStatus).ac)
-        assertEquals(1, assertNotNull(decoded.adsbStatus).mn)
-        assertEquals(2, assertNotNull(decoded.adsbStatus).dc)
+        assertEquals(AdsbAcasStatus.ACAS_OPERATIONAL, assertNotNull(decoded.adsbStatus).ac)
+        assertEquals(MultipleNavigationalAidStatus.MULTIPLE_NAVIGATIONAL_AIDS_NOT_OPERATING, assertNotNull(decoded.adsbStatus).mn)
+        assertEquals(DifferentialCorrectionStatus.NO_DIFFERENTIAL_CORRECTION, assertNotNull(decoded.adsbStatus).dc)
         assertTrue(assertNotNull(decoded.adsbStatus).gbs)
-        assertEquals(5, assertNotNull(decoded.adsbStatus).stat)
+        assertEquals(AdsbEmergencyStatus.UNLAWFUL_INTERFERENCE, assertNotNull(decoded.adsbStatus).stat)
         assertEquals(250, decoded.indicatedAirspeedKnots)
         assertEquals(0.8, assertNotNull(decoded.machNumber), 0.001)
         assertEquals(1013.2, assertNotNull(decoded.barometricPressureSettingHpa), 0.001)
@@ -76,7 +76,7 @@ class Cat062CodecAircraftDerivedDataTest {
             AircraftDerivedData(
                 rollAngleDegrees = 1.25,
                 trackAngleRateDegreesPerSecond = -3.5,
-                positionUncertaintyCode = 10,
+                positionUncertaintyCode = PositionUncertaintyCategory.CATEGORY_10,
                 barometricPressureSettingHpa = 1013.2,
             ),
         )
@@ -102,7 +102,7 @@ class Cat062CodecAircraftDerivedDataTest {
         val decoded = support.readAircraftDerivedData(buffer)
         assertEquals(1.25, assertNotNull(decoded.rollAngleDegrees), 0.001)
         assertEquals(-3.5, assertNotNull(decoded.trackAngleRateDegreesPerSecond), 0.001)
-        assertEquals(10, assertNotNull(decoded.positionUncertaintyCode))
+        assertEquals(PositionUncertaintyCategory.CATEGORY_10, assertNotNull(decoded.positionUncertaintyCode))
         assertEquals(1013.2, assertNotNull(decoded.barometricPressureSettingHpa), 0.001)
     }
 
@@ -158,7 +158,12 @@ class Cat062CodecAircraftDerivedDataTest {
                 "trueAirspeedKnots" to AircraftDerivedData(trueAirspeedKnots = 400),
                 "selectedAltitude" to
                     AircraftDerivedData(
-                        selectedAltitude = SelectedAltitude(sourceAvailable = true, sourceCode = 2, flightLevel = 200.0),
+                        selectedAltitude =
+                            SelectedAltitude(
+                                sourceAvailable = true,
+                                sourceCode = SelectedAltitudeSource.FCU_MCP_SELECTED_ALTITUDE,
+                                flightLevel = 200.0,
+                            ),
                     ),
                 "finalStateSelectedAltitude" to
                     AircraftDerivedData(
@@ -182,8 +187,8 @@ class Cat062CodecAircraftDerivedDataTest {
                     AircraftDerivedData(
                         communicationsCapabilities =
                             CommunicationsCapabilities(
-                                comCode = 3,
-                                statCode = 5,
+                                comCode = ModeSCommunicationsCapability.Known.COMM_A_COMM_B_UPLINK_ELM_AND_DOWNLINK_ELM,
+                                statCode = ModeSFlightStatus.Known.NO_ALERT_SPI_AIRBORNE_OR_ON_GROUND,
                                 ssc = true,
                                 arcCode = true,
                                 aic = false,
@@ -191,7 +196,17 @@ class Cat062CodecAircraftDerivedDataTest {
                                 b1b = 9,
                             ),
                     ),
-                "adsbStatus" to AircraftDerivedData(adsbStatus = AdsbStatus(ac = 2, mn = 1, dc = 3, gbs = true, stat = 5)),
+                "adsbStatus" to
+                    AircraftDerivedData(
+                        adsbStatus =
+                            AdsbStatus(
+                                ac = AdsbAcasStatus.ACAS_OPERATIONAL,
+                                mn = MultipleNavigationalAidStatus.MULTIPLE_NAVIGATIONAL_AIDS_NOT_OPERATING,
+                                dc = DifferentialCorrectionStatus.INVALID,
+                                gbs = true,
+                                stat = AdsbEmergencyStatus.UNLAWFUL_INTERFERENCE,
+                            ),
+                    ),
                 "acasResolutionAdvisoryReport" to
                     AircraftDerivedData(
                         acasResolutionAdvisoryReport = AcasResolutionAdvisory(0x01020304050607),
@@ -202,7 +217,8 @@ class Cat062CodecAircraftDerivedDataTest {
                 "trackAngleRateDegreesPerSecond" to AircraftDerivedData(trackAngleRateDegreesPerSecond = -3.5),
                 "trackAngleDegrees" to AircraftDerivedData(trackAngleDegrees = 180.0),
                 "groundSpeedKnots" to AircraftDerivedData(groundSpeedKnots = 450.0),
-                "velocityUncertaintyCategory" to AircraftDerivedData(velocityUncertaintyCategory = 6),
+                "velocityUncertaintyCategory" to
+                    AircraftDerivedData(velocityUncertaintyCategory = VelocityUncertaintyCategory.CATEGORY_6),
                 "meteorologicalData.windSpeedKnots" to
                     AircraftDerivedData(
                         meteorologicalData = MeteorologicalData(windSpeedKnots = 120),
@@ -217,15 +233,17 @@ class Cat062CodecAircraftDerivedDataTest {
                     ),
                 "meteorologicalData.turbulenceCode" to
                     AircraftDerivedData(
-                        meteorologicalData = MeteorologicalData(turbulenceCode = 7),
+                        meteorologicalData = MeteorologicalData(turbulenceCode = TurbulenceLevel.LEVEL_7),
                     ),
-                "emitterCategory" to AircraftDerivedData(emitterCategory = 11),
+                "emitterCategory" to
+                    AircraftDerivedData(emitterCategory = AircraftEmitterCategory.Known.GLIDER_SAILPLANE),
                 "positionWgs84" to
                     AircraftDerivedData(
                         positionWgs84 = Wgs84Position(64 * WGS84_RESOLUTION, -128 * WGS84_RESOLUTION),
                     ),
                 "geometricAltitudeFeet" to AircraftDerivedData(geometricAltitudeFeet = 10_000.0),
-                "positionUncertaintyCode" to AircraftDerivedData(positionUncertaintyCode = 10),
+                "positionUncertaintyCode" to
+                    AircraftDerivedData(positionUncertaintyCode = PositionUncertaintyCategory.CATEGORY_10),
                 "modeSMessages" to
                     AircraftDerivedData(
                         modeSMessages = listOf(ModeSMessage(byteArrayOf(1, 2, 3, 4, 5, 6, 7), 4, 0)),
@@ -252,7 +270,12 @@ class Cat062CodecAircraftDerivedDataTest {
                 magneticHeadingDegrees = 90.0,
                 indicatedAirspeed = Airspeed(AirspeedType.MACH, 0.8),
                 trueAirspeedKnots = 400,
-                selectedAltitude = SelectedAltitude(sourceAvailable = true, sourceCode = 2, flightLevel = 200.0),
+                selectedAltitude =
+                    SelectedAltitude(
+                        sourceAvailable = true,
+                        sourceCode = SelectedAltitudeSource.FCU_MCP_SELECTED_ALTITUDE,
+                        flightLevel = 200.0,
+                    ),
                 finalStateSelectedAltitude =
                     FinalStateSelectedAltitude(
                         managedVerticalModeActive = true,
@@ -268,15 +291,22 @@ class Cat062CodecAircraftDerivedDataTest {
                     ),
                 communicationsCapabilities =
                     CommunicationsCapabilities(
-                        comCode = 3,
-                        statCode = 5,
+                        comCode = ModeSCommunicationsCapability.Known.COMM_A_COMM_B_UPLINK_ELM_AND_DOWNLINK_ELM,
+                        statCode = ModeSFlightStatus.Known.NO_ALERT_SPI_AIRBORNE_OR_ON_GROUND,
                         ssc = true,
                         arcCode = true,
                         aic = false,
                         b1a = 1,
                         b1b = 9,
                     ),
-                adsbStatus = AdsbStatus(ac = 2, mn = 1, dc = 3, gbs = true, stat = 5),
+                adsbStatus =
+                    AdsbStatus(
+                        ac = AdsbAcasStatus.ACAS_OPERATIONAL,
+                        mn = MultipleNavigationalAidStatus.MULTIPLE_NAVIGATIONAL_AIDS_NOT_OPERATING,
+                        dc = DifferentialCorrectionStatus.INVALID,
+                        gbs = true,
+                        stat = AdsbEmergencyStatus.UNLAWFUL_INTERFERENCE,
+                    ),
                 acasResolutionAdvisoryReport = AcasResolutionAdvisory(0x01020304050607),
                 barometricVerticalRateFeetPerMinute = 62.5,
                 geometricVerticalRateFeetPerMinute = -62.5,
@@ -284,18 +314,18 @@ class Cat062CodecAircraftDerivedDataTest {
                 trackAngleRateDegreesPerSecond = -3.5,
                 trackAngleDegrees = 180.0,
                 groundSpeedKnots = 450.0,
-                velocityUncertaintyCategory = 6,
+                velocityUncertaintyCategory = VelocityUncertaintyCategory.CATEGORY_6,
                 meteorologicalData =
                     MeteorologicalData(
                         windSpeedKnots = 120,
                         windDirectionDegrees = 180.0,
                         temperatureCelsius = -12.5,
-                        turbulenceCode = 7,
+                        turbulenceCode = TurbulenceLevel.LEVEL_7,
                     ),
-                emitterCategory = 11,
+                emitterCategory = AircraftEmitterCategory.Known.GLIDER_SAILPLANE,
                 positionWgs84 = Wgs84Position(64 * WGS84_RESOLUTION, -128 * WGS84_RESOLUTION),
                 geometricAltitudeFeet = 10_000.0,
-                positionUncertaintyCode = 10,
+                positionUncertaintyCode = PositionUncertaintyCategory.CATEGORY_10,
                 modeSMessages =
                     listOf(
                         ModeSMessage(byteArrayOf(1, 2, 3, 4, 5, 6, 7), 4, 0),
@@ -320,7 +350,7 @@ class Cat062CodecAircraftDerivedDataTest {
                 meteorologicalData =
                     MeteorologicalData(
                         windDirectionDegrees = 180.0,
-                        turbulenceCode = 3,
+                        turbulenceCode = TurbulenceLevel.LEVEL_3,
                     ),
             )
 
@@ -357,7 +387,7 @@ class Cat062CodecAircraftDerivedDataTest {
                 selectedAltitude =
                     SelectedAltitude(
                         sourceAvailable = true,
-                        sourceCode = 2,
+                        sourceCode = SelectedAltitudeSource.FCU_MCP_SELECTED_ALTITUDE,
                         flightLevel = 1000.0,
                     ),
                 finalStateSelectedAltitude =
@@ -384,7 +414,7 @@ class Cat062CodecAircraftDerivedDataTest {
                     selectedAltitude =
                         SelectedAltitude(
                             sourceAvailable = true,
-                            sourceCode = 1,
+                            sourceCode = SelectedAltitudeSource.AIRCRAFT_ALTITUDE,
                             flightLevel = 1000.25,
                         ),
                 ),
@@ -455,36 +485,6 @@ class Cat062CodecAircraftDerivedDataTest {
 
     @Test
     fun writeAircraftDerivedDataRejectsInvalidCommunicationsAndModeSMessageShapes() {
-        assertRangeFailure("aircraftDerivedData.communicationsCapabilities.comCode out of range") {
-            support.writeAircraftDerivedData(
-                ByteBuffer.allocate(32),
-                AircraftDerivedData(
-                    communicationsCapabilities =
-                        CommunicationsCapabilities(
-                            comCode = 8,
-                            statCode = 0,
-                            ssc = false,
-                            arcCode = false,
-                            aic = false,
-                            b1a = 0,
-                            b1b = 0,
-                        ),
-                ),
-            )
-        }
-
-        assertRangeFailure("aircraftDerivedData.trajectoryIntentData.pointType out of range") {
-            support.writeAircraftDerivedData(
-                ByteBuffer.allocate(32),
-                AircraftDerivedData(
-                    trajectoryIntentData =
-                        listOf(
-                            trajectoryIntentPoint.copy(pointType = 12),
-                        ),
-                ),
-            )
-        }
-
         assertRangeFailure("aircraftDerivedData.modeSMessages.message must be 7 bytes but was 3") {
             support.writeAircraftDerivedData(
                 ByteBuffer.allocate(32),
@@ -505,12 +505,38 @@ class Cat062CodecAircraftDerivedDataTest {
     }
 
     @Test
-    fun writeAircraftDerivedDataRejectsVelocityUncertaintyOverflow() {
-        assertRangeFailure("aircraftDerivedData.velocityUncertaintyCategory out of range") {
-            support.writeAircraftDerivedData(
-                ByteBuffer.allocate(8),
-                AircraftDerivedData(velocityUncertaintyCategory = 8),
+    fun aircraftDerivedTypedCodeFamiliesMapAndPreserveUnknownValues() {
+        assertEquals(SelectedAltitudeSource.FCU_MCP_SELECTED_ALTITUDE, SelectedAltitudeSource.fromCode(2))
+        assertEquals(TrajectoryIntentPointType.RF_LEG, TrajectoryIntentPointType.fromCode(6))
+        assertEquals(TurnDirection.LEFT, TurnDirection.fromCode(2))
+        assertEquals(AdsbAcasStatus.ACAS_OPERATIONAL, AdsbAcasStatus.fromCode(2))
+        assertEquals(MultipleNavigationalAidStatus.MULTIPLE_NAVIGATIONAL_AIDS_NOT_OPERATING, MultipleNavigationalAidStatus.fromCode(1))
+        assertEquals(DifferentialCorrectionStatus.NO_DIFFERENTIAL_CORRECTION, DifferentialCorrectionStatus.fromCode(2))
+        assertEquals(AdsbEmergencyStatus.UNLAWFUL_INTERFERENCE, AdsbEmergencyStatus.fromCode(5))
+        assertEquals(VelocityUncertaintyCategory.CATEGORY_6, VelocityUncertaintyCategory.fromCode(6))
+        assertEquals(TurbulenceLevel.LEVEL_7, TurbulenceLevel.fromCode(7))
+        assertEquals(PositionUncertaintyCategory.CATEGORY_10, PositionUncertaintyCategory.fromCode(10))
+
+        val communicationsUnknown =
+            AircraftDerivedData(
+                communicationsCapabilities =
+                    CommunicationsCapabilities(
+                        comCode = ModeSCommunicationsCapability.Unknown(5),
+                        statCode = ModeSFlightStatus.Unknown(6),
+                        ssc = true,
+                        arcCode = true,
+                        aic = false,
+                        b1a = 1,
+                        b1b = 9,
+                    ),
             )
+        val emitterUnknown = AircraftDerivedData(emitterCategory = AircraftEmitterCategory.Unknown(24))
+
+        listOf(communicationsUnknown, emitterUnknown).forEach { expected ->
+            val buffer = ByteBuffer.allocate(32)
+            support.writeAircraftDerivedData(buffer, expected)
+            buffer.flip()
+            assertEquals(expected, support.readAircraftDerivedData(buffer))
         }
     }
 

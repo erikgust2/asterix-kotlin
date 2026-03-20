@@ -151,9 +151,12 @@ The supporting type files group related models by domain:
 - `Cat062FlightPlanTypes.kt`
 - `Cat062Mode5Types.kt`
 
-The code uses plain Kotlin data classes heavily. This keeps the model simple,
-but it also means some spec-coded values are still raw `Int`s instead of
-stronger enum-like abstractions.
+The code uses plain Kotlin data classes heavily. Spec-coded fields that have a
+stable CAT062 meaning are now modeled as enums or sealed `Known` /
+`Unknown(code)` families at the model layer, and the codecs map those values
+through `fromCode(...)` and `.code` helpers rather than duplicating tables
+inline. Truly numeric identifiers, counters, and opaque binary payloads remain
+numeric.
 
 `RawBytes` is a small wrapper around `ByteArray` used where binary payloads need
 value semantics instead of reference equality.
@@ -258,7 +261,8 @@ the current suite layout.
 ## Current Architectural Constraints
 
 - The API is low-level and buffer-oriented
-- Some spec-coded fields are still modeled as raw integers
+- Some spec fields still remain intentionally numeric when the CAT062 PDF only
+  exposes opaque category numbers rather than stable named semantics
 - Several CAT062 compound items remain inherently complex even after file
   splitting
 - The project is category-specific, so cross-category ASTERIX reuse is limited

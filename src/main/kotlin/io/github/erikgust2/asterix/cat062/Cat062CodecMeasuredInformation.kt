@@ -43,7 +43,7 @@ internal fun Cat062CodecSupport.readMeasuredInformation(buffer: ByteBuffer): Mea
         val octet = buffer.get().toUnsignedInt()
         reportType =
             ReportType(
-                typ = octet ushr 5,
+                typ = MeasuredReportType.fromCode(octet ushr 5),
                 simulated = (octet and 0x10) != 0,
                 rab = (octet and 0x08) != 0,
                 testTarget = (octet and 0x04) != 0,
@@ -105,9 +105,8 @@ internal fun Cat062CodecSupport.writeMeasuredInformation(
         buffer.putUnsignedShort(raw, "measuredInformation.lastMeasuredMode3aCode")
     }
     value.reportType?.let {
-        require(it.typ in 0..0x07) { "measuredInformation.detectedTargetType.typ out of range: ${it.typ}" }
         val octet =
-            ((it.typ and 0x07) shl 5) or (if (it.simulated) 0x10 else 0) or
+            ((it.typ.code and 0x07) shl 5) or (if (it.simulated) 0x10 else 0) or
                 (if (it.rab) 0x08 else 0) or (if (it.testTarget) 0x04 else 0)
         buffer.put(octet.toByte())
     }

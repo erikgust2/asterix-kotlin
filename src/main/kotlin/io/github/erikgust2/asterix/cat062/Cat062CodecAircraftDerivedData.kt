@@ -23,12 +23,12 @@ internal fun Cat062CodecSupport.readAircraftDerivedData(buffer: ByteBuffer): Air
     var trackAngleRateDegreesPerSecond: Double? = null
     var trackAngleDegrees: Double? = null
     var groundSpeedKnots: Double? = null
-    var velocityUncertaintyCategory: Int? = null
+    var velocityUncertaintyCategory: VelocityUncertaintyCategory? = null
     var meteorologicalData: MeteorologicalData? = null
-    var emitterCategory: Int? = null
+    var emitterCategory: AircraftEmitterCategory? = null
     var positionWgs84: Wgs84Position? = null
     var geometricAltitudeFeet: Double? = null
-    var positionUncertaintyCode: Int? = null
+    var positionUncertaintyCode: PositionUncertaintyCategory? = null
     var modeSMessages: List<ModeSMessage>? = null
     var indicatedAirspeedKnots: Int? = null
     var machNumber: Double? = null
@@ -54,7 +54,7 @@ internal fun Cat062CodecSupport.readAircraftDerivedData(buffer: ByteBuffer): Air
         selectedAltitude =
             SelectedAltitude(
                 sourceAvailable = (raw and 0x8000) != 0,
-                sourceCode = (raw ushr 13) and 0x03,
+                sourceCode = SelectedAltitudeSource.fromCode((raw ushr 13) and 0x03),
                 flightLevel = signExtend(raw and 0x1FFF, 13) * 0.25,
             )
     }
@@ -85,8 +85,8 @@ internal fun Cat062CodecSupport.readAircraftDerivedData(buffer: ByteBuffer): Air
         val b2 = buffer.get().toUnsignedInt()
         communicationsCapabilities =
             CommunicationsCapabilities(
-                comCode = b1 ushr 5,
-                statCode = (b1 ushr 2) and 0x07,
+                comCode = ModeSCommunicationsCapability.fromCode(b1 ushr 5),
+                statCode = ModeSFlightStatus.fromCode((b1 ushr 2) and 0x07),
                 ssc = (b1 and 0x02) != 0,
                 arcCode = (b2 and 0x40) != 0,
                 aic = (b2 and 0x20) != 0,
@@ -98,11 +98,11 @@ internal fun Cat062CodecSupport.readAircraftDerivedData(buffer: ByteBuffer): Air
         val raw = buffer.short.toUnsignedInt()
         adsbStatus =
             AdsbStatus(
-                ac = (raw ushr 14) and 0x03,
-                mn = (raw ushr 12) and 0x03,
-                dc = (raw ushr 10) and 0x03,
+                ac = AdsbAcasStatus.fromCode((raw ushr 14) and 0x03),
+                mn = MultipleNavigationalAidStatus.fromCode((raw ushr 12) and 0x03),
+                dc = DifferentialCorrectionStatus.fromCode((raw ushr 10) and 0x03),
                 gbs = (raw and 0x0200) != 0,
-                stat = raw and 0x07,
+                stat = AdsbEmergencyStatus.fromCode(raw and 0x07),
             )
     }
     if (isCompoundSubfieldPresent(indicator, 12)) acasResolutionAdvisoryReport = AcasResolutionAdvisory(readUnsignedInt56(buffer))
@@ -128,12 +128,16 @@ internal fun Cat062CodecSupport.readAircraftDerivedData(buffer: ByteBuffer): Air
     }
     if (isCompoundSubfieldPresent(indicator, 17)) trackAngleDegrees = buffer.short.toUnsignedInt() * (360.0 / 65536.0)
     if (isCompoundSubfieldPresent(indicator, 18)) groundSpeedKnots = buffer.short.toUnsignedInt() * (1.0 / 16384.0) * 3600.0
-    if (isCompoundSubfieldPresent(indicator, 19)) velocityUncertaintyCategory = buffer.get().toUnsignedInt() ushr 5
+    if (isCompoundSubfieldPresent(indicator, 19)) {
+        velocityUncertaintyCategory = VelocityUncertaintyCategory.fromCode(buffer.get().toUnsignedInt() ushr 5)
+    }
     if (isCompoundSubfieldPresent(indicator, 20)) meteorologicalData = readMeteorologicalData(buffer)
-    if (isCompoundSubfieldPresent(indicator, 21)) emitterCategory = buffer.get().toUnsignedInt()
+    if (isCompoundSubfieldPresent(indicator, 21)) emitterCategory = AircraftEmitterCategory.fromCode(buffer.get().toUnsignedInt())
     if (isCompoundSubfieldPresent(indicator, 22)) positionWgs84 = readWgs84Position(buffer)
     if (isCompoundSubfieldPresent(indicator, 23)) geometricAltitudeFeet = buffer.short.toDouble() * 6.25
-    if (isCompoundSubfieldPresent(indicator, 24)) positionUncertaintyCode = buffer.get().toUnsignedInt() and 0x0F
+    if (isCompoundSubfieldPresent(indicator, 24)) {
+        positionUncertaintyCode = PositionUncertaintyCategory.fromCode(buffer.get().toUnsignedInt() and 0x0F)
+    }
     if (isCompoundSubfieldPresent(indicator, 25)) {
         val rep = buffer.get().toUnsignedInt()
         modeSMessages =
@@ -245,9 +249,8 @@ internal fun Cat062CodecSupport.writeAircraftDerivedData(
         buffer.putUnsignedShort(it, "aircraftDerivedData.trueAirspeedKnots")
     }
     value.selectedAltitude?.let {
-        require(it.sourceCode in 0..0x03) { "aircraftDerivedData.selectedAltitude.sourceCode out of range: ${it.sourceCode}" }
         require(it.flightLevel in -13.0..1000.0) { "aircraftDerivedData.selectedAltitude.flightLevel out of range: ${it.flightLevel}" }
-        var raw = (if (it.sourceAvailable) 0x8000 else 0) or ((it.sourceCode and 0x03) shl 13)
+        var raw = (if (it.sourceAvailable) 0x8000 else 0) or ((it.sourceCode.code and 0x03) shl 13)
         raw =
             raw or
             encodeSignedBits(
@@ -285,23 +288,17 @@ internal fun Cat062CodecSupport.writeAircraftDerivedData(
         it.forEach { point -> writeTrajectoryIntentPoint(buffer, point) }
     }
     value.communicationsCapabilities?.let {
-        require(it.comCode in 0..0x07) { "aircraftDerivedData.communicationsCapabilities.comCode out of range: ${it.comCode}" }
-        require(it.statCode in 0..0x07) { "aircraftDerivedData.communicationsCapabilities.statCode out of range: ${it.statCode}" }
         require(it.b1a in 0..0x01) { "aircraftDerivedData.communicationsCapabilities.b1a out of range: ${it.b1a}" }
         require(it.b1b in 0..0x0F) { "aircraftDerivedData.communicationsCapabilities.b1b out of range: ${it.b1b}" }
-        val b1 = ((it.comCode and 0x07) shl 5) or ((it.statCode and 0x07) shl 2) or (if (it.ssc) 0x02 else 0)
+        val b1 = ((it.comCode.code and 0x07) shl 5) or ((it.statCode.code and 0x07) shl 2) or (if (it.ssc) 0x02 else 0)
         val b2 = (if (it.arcCode) 0x40 else 0) or (if (it.aic) 0x20 else 0) or ((it.b1a and 0x01) shl 4) or (it.b1b and 0x0F)
         buffer.put(b1.toByte())
         buffer.put(b2.toByte())
     }
     value.adsbStatus?.let {
-        require(it.ac in 0..0x03) { "aircraftDerivedData.adsbStatus.ac out of range: ${it.ac}" }
-        require(it.mn in 0..0x03) { "aircraftDerivedData.adsbStatus.mn out of range: ${it.mn}" }
-        require(it.dc in 0..0x03) { "aircraftDerivedData.adsbStatus.dc out of range: ${it.dc}" }
-        require(it.stat in 0..0x07) { "aircraftDerivedData.adsbStatus.stat out of range: ${it.stat}" }
         val raw =
-            ((it.ac and 0x03) shl 14) or ((it.mn and 0x03) shl 12) or ((it.dc and 0x03) shl 10) or
-                (if (it.gbs) 0x0200 else 0) or (it.stat and 0x07)
+            ((it.ac.code and 0x03) shl 14) or ((it.mn.code and 0x03) shl 12) or ((it.dc.code and 0x03) shl 10) or
+                (if (it.gbs) 0x0200 else 0) or (it.stat.code and 0x07)
         buffer.putUnsignedShort(raw, "aircraftDerivedData.adsbStatus")
     }
     value.acasResolutionAdvisoryReport?.let { writeUnsignedInt56(buffer, it.raw, "aircraftDerivedData.acasResolutionAdvisoryReport") }
@@ -354,11 +351,10 @@ internal fun Cat062CodecSupport.writeAircraftDerivedData(
         )
     }
     value.velocityUncertaintyCategory?.let {
-        require(it in 0..0x07) { "aircraftDerivedData.velocityUncertaintyCategory out of range: $it" }
-        buffer.put((it shl 5).toByte())
+        buffer.put((it.code shl 5).toByte())
     }
     value.meteorologicalData?.let { writeMeteorologicalData(buffer, it) }
-    value.emitterCategory?.let { buffer.putUnsignedByte(it, "aircraftDerivedData.emitterCategory") }
+    value.emitterCategory?.let { buffer.putUnsignedByte(it.code, "aircraftDerivedData.emitterCategory") }
     value.positionWgs84?.let { writeWgs84Position(buffer, it) }
     value.geometricAltitudeFeet?.let {
         require(it in -1500.0..150000.0) { "aircraftDerivedData.geometricAltitudeFeet out of range: $it" }
@@ -366,7 +362,7 @@ internal fun Cat062CodecSupport.writeAircraftDerivedData(
     }
     value.positionUncertaintyCode?.let {
         buffer.putUnsignedByte(
-            encodeUnsignedBits(it, 4, "aircraftDerivedData.positionUncertaintyCode"),
+            encodeUnsignedBits(it.code, 4, "aircraftDerivedData.positionUncertaintyCode"),
             "aircraftDerivedData.positionUncertaintyCode",
         )
     }
@@ -417,8 +413,8 @@ private fun Cat062CodecSupport.readTrajectoryIntentPoint(buffer: ByteBuffer): Tr
                 latitudeDegrees = latitudeDegrees,
                 longitudeDegrees = longitudeDegrees,
             ),
-        pointType = (secondOctet ushr 4) and 0x0F,
-        turnDirectionCode = (secondOctet ushr 2) and 0x03,
+        pointType = TrajectoryIntentPointType.fromCode((secondOctet ushr 4) and 0x0F),
+        turnDirectionCode = TurnDirection.fromCode((secondOctet ushr 2) and 0x03),
         turnRadiusAvailable = (secondOctet and 0x02) != 0,
         timeOverPointAvailable = (secondOctet and 0x01) == 0,
         timeOverPointSeconds = readUnsignedInt24(buffer),
@@ -439,10 +435,6 @@ private fun Cat062CodecSupport.writeTrajectoryIntentPoint(
     }
     require(value.positionWgs84.longitudeDegrees >= -180.0 && value.positionWgs84.longitudeDegrees < 180.0) {
         "aircraftDerivedData.trajectoryIntentData.positionWgs84.longitudeDegrees out of range: ${value.positionWgs84.longitudeDegrees}"
-    }
-    require(value.pointType in 0..11) { "aircraftDerivedData.trajectoryIntentData.pointType out of range: ${value.pointType}" }
-    require(value.turnDirectionCode in 0..0x03) {
-        "aircraftDerivedData.trajectoryIntentData.turnDirectionCode out of range: ${value.turnDirectionCode}"
     }
     require(value.timeOverPointSeconds in 0..0xFFFFFF) {
         "aircraftDerivedData.trajectoryIntentData.timeOverPointSeconds out of range: ${value.timeOverPointSeconds}"
@@ -477,7 +469,7 @@ private fun Cat062CodecSupport.writeTrajectoryIntentPoint(
         ),
         "aircraftDerivedData.trajectoryIntentData.positionWgs84.longitudeDegrees",
     )
-    var secondOctet = ((value.pointType and 0x0F) shl 4) or ((value.turnDirectionCode and 0x03) shl 2)
+    var secondOctet = ((value.pointType.code and 0x0F) shl 4) or ((value.turnDirectionCode.code and 0x03) shl 2)
     if (value.turnRadiusAvailable) secondOctet = secondOctet or 0x02
     if (!value.timeOverPointAvailable) secondOctet = secondOctet or 0x01
     buffer.put(secondOctet.toByte())
@@ -497,11 +489,11 @@ internal fun Cat062CodecSupport.readMeteorologicalData(buffer: ByteBuffer): Mete
     var windSpeedKnots: Int? = null
     var windDirectionDegrees: Double? = null
     var temperatureCelsius: Double? = null
-    var turbulenceCode: Int? = null
+    var turbulenceCode: TurbulenceLevel? = null
     if (isCompoundSubfieldPresent(indicator, 1)) windSpeedKnots = buffer.short.toUnsignedInt()
     if (isCompoundSubfieldPresent(indicator, 2)) windDirectionDegrees = buffer.short.toUnsignedInt() * (360.0 / 65536.0)
     if (isCompoundSubfieldPresent(indicator, 3)) temperatureCelsius = buffer.short.toDouble() * 0.25
-    if (isCompoundSubfieldPresent(indicator, 4)) turbulenceCode = buffer.get().toUnsignedInt()
+    if (isCompoundSubfieldPresent(indicator, 4)) turbulenceCode = TurbulenceLevel.fromCode(buffer.get().toUnsignedInt())
     return MeteorologicalData(windSpeedKnots, windDirectionDegrees, temperatureCelsius, turbulenceCode)
 }
 
@@ -525,5 +517,5 @@ internal fun Cat062CodecSupport.writeMeteorologicalData(
     value.temperatureCelsius?.let {
         buffer.putSignedShort(quantize(it, 0.25, "meteorologicalData.temperatureCelsius"), "meteorologicalData.temperatureCelsius")
     }
-    value.turbulenceCode?.let { buffer.putUnsignedByte(it, "meteorologicalData.turbulenceCode") }
+    value.turbulenceCode?.let { buffer.putUnsignedByte(it.code, "meteorologicalData.turbulenceCode") }
 }

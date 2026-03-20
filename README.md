@@ -5,6 +5,7 @@ Kotlin/JVM codec for ASTERIX CAT062 System Track Data.
 The project targets CAT062 v1.15 and provides:
 
 - Kotlin model types for CAT062 records and compound items
+- Typed enums and sealed `Known`/`Unknown(code)` models for spec-coded CAT062 fields
 - `ByteBuffer`-based read/write support for CAT062 records and complete data blocks
 - Round-trip tests for the current wire encoding
 
@@ -74,6 +75,7 @@ import io.github.erikgust2.asterix.cat062.Cat062DataBlock
 import io.github.erikgust2.asterix.cat062.Cat062Codec
 import io.github.erikgust2.asterix.cat062.Cat062Record
 import io.github.erikgust2.asterix.cat062.DataSourceIdentifier
+import io.github.erikgust2.asterix.cat062.TrackSource
 import io.github.erikgust2.asterix.cat062.TrackStatus
 import java.nio.ByteBuffer
 
@@ -83,7 +85,13 @@ val record = Cat062Record(
     serviceIdentification = 4,
     trackNumber = 42,
     timeOfTrackInformationSeconds = 12_345.0,
-    trackStatus = TrackStatus(),
+    trackStatus = TrackStatus(
+        mon = true,
+        spi = false,
+        mrh = false,
+        src = TrackSource.THREE_D_RADAR,
+        cnf = true,
+    ),
 )
 
 Cat062Codec.writeDataBlock(
@@ -101,13 +109,20 @@ val decoded = Cat062Codec.readDataBlock(buffer)
 import io.github.erikgust2.asterix.cat062.Cat062Codec
 import io.github.erikgust2.asterix.cat062.Cat062Record
 import io.github.erikgust2.asterix.cat062.DataSourceIdentifier
+import io.github.erikgust2.asterix.cat062.TrackSource
 import io.github.erikgust2.asterix.cat062.TrackStatus
 
 val record = Cat062Record(
     dataSourceIdentifier = DataSourceIdentifier(1, 2),
     trackNumber = 42,
     timeOfTrackInformationSeconds = 12_345.0,
-    trackStatus = TrackStatus(),
+    trackStatus = TrackStatus(
+        mon = true,
+        spi = false,
+        mrh = false,
+        src = TrackSource.THREE_D_RADAR,
+        cnf = true,
+    ),
 )
 
 val bytes = Cat062Codec.writeRecord(record)
@@ -121,6 +136,11 @@ For `I062/270` Target Size & Orientation, the model follows the wire extents:
 `orientationDegrees = null` means length-only, `orientationDegrees != null`
 with `widthMeters = null` means orientation is present without width, and
 `widthMeters` requires `orientationDegrees`.
+
+For semantic CAT062 code tables such as track source, report type, flight
+category, selected-altitude source, and ADS-B / Mode-S status fields, the
+public model now uses typed enums or sealed `Known` / `Unknown(code)` values
+instead of raw integers.
 
 ## Scope
 

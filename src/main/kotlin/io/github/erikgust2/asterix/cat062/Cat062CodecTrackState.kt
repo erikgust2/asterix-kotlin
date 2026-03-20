@@ -17,7 +17,7 @@ internal fun Cat062CodecSupport.readTrackStatus(buffer: ByteBuffer): TrackStatus
         mon = (octet1 and 0x80) != 0,
         spi = (octet1 and 0x40) != 0,
         mrh = (octet1 and 0x20) != 0,
-        src = (octet1 ushr 2) and 0x07,
+        src = TrackSource.fromCode((octet1 ushr 2) and 0x07),
         cnf = (octet1 and 0x02) != 0,
         sim = octet2?.let { (it and 0x80) != 0 },
         tse = octet2?.let { (it and 0x40) != 0 },
@@ -27,10 +27,10 @@ internal fun Cat062CodecSupport.readTrackStatus(buffer: ByteBuffer): TrackStatus
         stp = octet2?.let { (it and 0x04) != 0 },
         kos = octet2?.let { (it and 0x02) != 0 },
         ama = octet3?.let { (it and 0x80) != 0 },
-        md4 = octet3?.let { (it ushr 5) and 0x03 },
+        md4 = octet3?.let { Mode4Status.fromCode((it ushr 5) and 0x03) },
         me = octet3?.let { (it and 0x10) != 0 },
         mi = octet3?.let { (it and 0x08) != 0 },
-        md5 = octet3?.let { (it ushr 1) and 0x03 },
+        md5 = octet3?.let { Mode5Status.fromCode((it ushr 1) and 0x03) },
         cst = octet4?.let { (it and 0x80) != 0 },
         psr = octet4?.let { (it and 0x40) != 0 },
         ssr = octet4?.let { (it and 0x20) != 0 },
@@ -38,8 +38,8 @@ internal fun Cat062CodecSupport.readTrackStatus(buffer: ByteBuffer): TrackStatus
         ads = octet4?.let { (it and 0x08) != 0 },
         suc = octet4?.let { (it and 0x04) != 0 },
         aac = octet4?.let { (it and 0x02) != 0 },
-        sds = octet5?.let { (it ushr 6) and 0x03 },
-        ems = octet5?.let { (it ushr 3) and 0x07 },
+        sds = octet5?.let { SurveillanceDataStatus.fromCode((it ushr 6) and 0x03) },
+        ems = octet5?.let { TrackEmergencyStatus.fromCode((it ushr 3) and 0x07) },
     )
 }
 
@@ -86,9 +86,7 @@ internal fun Cat062CodecSupport.writeTrackStatus(
     if (value.mon == true) octet1 = octet1 or 0x80
     if (value.spi == true) octet1 = octet1 or 0x40
     if (value.mrh == true) octet1 = octet1 or 0x20
-    val src = value.src!!
-    require(src in 0..0x07) { "trackStatus.src out of range: ${value.src}" }
-    octet1 = octet1 or (src shl 2)
+    octet1 = octet1 or (value.src!!.code shl 2)
     if (value.cnf == true) octet1 = octet1 or 0x02
     if (needsOctet2) octet1 = octet1 or 0x01
     buffer.put(octet1.toByte())
@@ -108,14 +106,10 @@ internal fun Cat062CodecSupport.writeTrackStatus(
     if (needsOctet3) {
         var octet3 = 0
         if (value.ama == true) octet3 = octet3 or 0x80
-        val md4 = value.md4!!
-        require(md4 in 0..0x03) { "trackStatus.md4 out of range: ${value.md4}" }
-        octet3 = octet3 or ((md4 and 0x03) shl 5)
+        octet3 = octet3 or ((value.md4!!.code and 0x03) shl 5)
         if (value.me == true) octet3 = octet3 or 0x10
         if (value.mi == true) octet3 = octet3 or 0x08
-        val md5 = value.md5!!
-        require(md5 in 0..0x03) { "trackStatus.md5 out of range: ${value.md5}" }
-        octet3 = octet3 or ((md5 and 0x03) shl 1)
+        octet3 = octet3 or ((value.md5!!.code and 0x03) shl 1)
         if (needsOctet4) octet3 = octet3 or 0x01
         buffer.put(octet3.toByte())
     }
@@ -133,12 +127,8 @@ internal fun Cat062CodecSupport.writeTrackStatus(
     }
     if (needsOctet5) {
         var octet5 = 0
-        val sds = value.sds!!
-        val ems = value.ems!!
-        require(sds in 0..0x03) { "trackStatus.sds out of range: ${value.sds}" }
-        require(ems in 0..0x07) { "trackStatus.ems out of range: ${value.ems}" }
-        octet5 = octet5 or ((sds and 0x03) shl 6)
-        octet5 = octet5 or ((ems and 0x07) shl 3)
+        octet5 = octet5 or ((value.sds!!.code and 0x03) shl 6)
+        octet5 = octet5 or ((value.ems!!.code and 0x07) shl 3)
         buffer.put(octet5.toByte())
     }
 }
