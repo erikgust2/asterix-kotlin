@@ -158,6 +158,11 @@ through `fromCode(...)` and `.code` helpers rather than duplicating tables
 inline. Truly numeric identifiers, counters, and opaque binary payloads remain
 numeric.
 
+Closed code tables that fully cover the extracted wire bit range can stay as
+enums. Sparse tables that may receive new spec-defined values should use sealed
+`Known` / `Unknown(code)` families so decode stays forward-compatible and
+unknown values can be re-encoded unchanged.
+
 `RawBytes` is a small wrapper around `ByteArray` used where binary payloads need
 value semantics instead of reference equality.
 
