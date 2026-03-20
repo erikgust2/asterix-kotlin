@@ -42,12 +42,21 @@ mvn spotless:apply
 The main entry point is `Cat062Codec`.
 
 - `Cat062Codec.readDataBlock(buffer)` reads a full ASTERIX CAT062 data block
+- `Cat062Codec.readDataBlock(bytes)` reads a full ASTERIX CAT062 data block from a `ByteArray`
 - `Cat062Codec.writeDataBlock(buffer, block)` writes a full ASTERIX CAT062 data block
+- `Cat062Codec.writeDataBlock(block)` writes a full ASTERIX CAT062 data block to a new `ByteArray`
 - `Cat062Codec.readRecord(buffer)` reads a single CAT062 record
+- `Cat062Codec.readRecord(bytes)` reads a single CAT062 record from a `ByteArray`
 - `Cat062Codec.writeRecord(buffer, record)` writes a single CAT062 record
+- `Cat062Codec.writeRecord(record)` writes a single CAT062 record to a new `ByteArray`
 
 The writer uses `ByteBuffer` directly, so the caller is responsible for
 allocating a large enough buffer and flipping it before reading.
+
+The `ByteArray` overloads are convenience helpers. They wrap decode input in a
+temporary `ByteBuffer`, and encode paths allocate an internal `ByteBuffer` plus
+the returned `ByteArray`. For hot paths or buffer reuse, prefer the explicit
+`ByteBuffer` methods.
 
 ## CAT062 Coverage Status
 
@@ -84,6 +93,25 @@ Cat062Codec.writeDataBlock(
 
 buffer.flip()
 val decoded = Cat062Codec.readDataBlock(buffer)
+```
+
+## Convenience Example
+
+```kotlin
+import io.github.erikgust2.asterix.cat062.Cat062Codec
+import io.github.erikgust2.asterix.cat062.Cat062Record
+import io.github.erikgust2.asterix.cat062.DataSourceIdentifier
+import io.github.erikgust2.asterix.cat062.TrackStatus
+
+val record = Cat062Record(
+    dataSourceIdentifier = DataSourceIdentifier(1, 2),
+    trackNumber = 42,
+    timeOfTrackInformationSeconds = 12_345.0,
+    trackStatus = TrackStatus(),
+)
+
+val bytes = Cat062Codec.writeRecord(record)
+val decoded = Cat062Codec.readRecord(bytes)
 ```
 
 `writeRecord` enforces the CAT062 mandatory items from the v1.15 UAP:

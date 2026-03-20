@@ -55,10 +55,34 @@ class Cat062CodecDataBlockTest {
     }
 
     @Test
+    fun publicByteArrayDataBlockConvenienceApiRoundTripsLargeBlock() {
+        val record =
+            minimalValidRecord(timeOfTrackInformationSeconds = 256.0).copy(
+                serviceIdentification = 4,
+                reservedExpansionField = ByteArray(254) { index -> index.toByte() }.toRawBytes(),
+                specialPurposeField = ByteArray(254) { index -> (255 - index).toByte() }.toRawBytes(),
+            )
+
+        val decoded = Cat062Codec.readDataBlock(Cat062Codec.writeDataBlock(Cat062DataBlock(listOf(record))))
+
+        assertEquals(Cat062DataBlock(listOf(record)), decoded)
+    }
+
+    @Test
     fun readDataBlockRejectsWrongCategory() {
         val error =
             assertFailsWith<IllegalArgumentException> {
                 Cat062Codec.readDataBlock(bufferOf(61, 0x00, 0x03))
+            }
+
+        assertTrue(error.message?.contains("Expected ASTERIX category 62 but found 61") == true)
+    }
+
+    @Test
+    fun readDataBlockByteArrayConvenienceRejectsWrongCategory() {
+        val error =
+            assertFailsWith<IllegalArgumentException> {
+                Cat062Codec.readDataBlock(byteArrayOfInts(61, 0x00, 0x03))
             }
 
         assertTrue(error.message?.contains("Expected ASTERIX category 62 but found 61") == true)
