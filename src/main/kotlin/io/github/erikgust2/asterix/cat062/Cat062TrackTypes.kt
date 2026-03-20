@@ -4,7 +4,7 @@ data class TrackStatus(
     val mon: Boolean? = null,
     val spi: Boolean? = null,
     val mrh: Boolean? = null,
-    val src: Int? = null,
+    val src: TrackSource? = null,
     val cnf: Boolean? = null,
     val sim: Boolean? = null,
     val tse: Boolean? = null,
@@ -14,10 +14,10 @@ data class TrackStatus(
     val stp: Boolean? = null,
     val kos: Boolean? = null,
     val ama: Boolean? = null,
-    val md4: Int? = null,
+    val md4: Mode4Status? = null,
     val me: Boolean? = null,
     val mi: Boolean? = null,
-    val md5: Int? = null,
+    val md5: Mode5Status? = null,
     val cst: Boolean? = null,
     val psr: Boolean? = null,
     val ssr: Boolean? = null,
@@ -25,9 +25,87 @@ data class TrackStatus(
     val ads: Boolean? = null,
     val suc: Boolean? = null,
     val aac: Boolean? = null,
-    val sds: Int? = null,
-    val ems: Int? = null,
+    val sds: SurveillanceDataStatus? = null,
+    val ems: TrackEmergencyStatus? = null,
 )
+
+enum class TrackSource(
+    val code: Int,
+) {
+    NO_SOURCE(0),
+    GNSS(1),
+    THREE_D_RADAR(2),
+    TRIANGULATION(3),
+    HEIGHT_FROM_COVERAGE(4),
+    SPEED_LOOKUP_TABLE(5),
+    DEFAULT_HEIGHT(6),
+    MULTILATERATION(7),
+    ;
+
+    companion object {
+        fun fromCode(code: Int): TrackSource = entries.first { it.code == code }
+    }
+}
+
+enum class Mode4Status(
+    val code: Int,
+) {
+    NO_INTERROGATION(0),
+    FRIENDLY_TARGET(1),
+    UNKNOWN_TARGET(2),
+    NO_REPLY(3),
+    ;
+
+    companion object {
+        fun fromCode(code: Int): Mode4Status = entries.first { it.code == code }
+    }
+}
+
+enum class Mode5Status(
+    val code: Int,
+) {
+    NO_INTERROGATION(0),
+    FRIENDLY_TARGET(1),
+    UNKNOWN_TARGET(2),
+    NO_REPLY(3),
+    ;
+
+    companion object {
+        fun fromCode(code: Int): Mode5Status = entries.first { it.code == code }
+    }
+}
+
+enum class SurveillanceDataStatus(
+    val code: Int,
+) {
+    COMBINED(0),
+    COOPERATIVE_ONLY(1),
+    NON_COOPERATIVE_ONLY(2),
+    NOT_DEFINED(3),
+    ;
+
+    companion object {
+        fun fromCode(code: Int): SurveillanceDataStatus = entries.first { it.code == code }
+    }
+}
+
+enum class TrackEmergencyStatus(
+    val code: Int,
+) {
+    NO_EMERGENCY(0),
+    GENERAL_EMERGENCY(1),
+    LIFEGUARD_MEDICAL(2),
+    MINIMUM_FUEL(3),
+    NO_COMMUNICATIONS(4),
+    UNLAWFUL_INTERFERENCE(5),
+    DOWNED_AIRCRAFT(6),
+    UNDEFINED(7),
+    ;
+
+    companion object {
+        fun fromCode(code: Int): TrackEmergencyStatus = entries.first { it.code == code }
+    }
+}
 
 enum class SystemTrackAgeType {
     TRACK,

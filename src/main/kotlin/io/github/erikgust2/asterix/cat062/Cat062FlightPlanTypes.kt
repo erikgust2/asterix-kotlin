@@ -1,16 +1,72 @@
 package io.github.erikgust2.asterix.cat062
 
 data class IfpsFlightId(
-    val typeCode: Int,
+    val typeCode: IfpsFlightIdType,
     val number: Int,
 )
 
 data class FlightCategory(
-    val gatOatCode: Int,
-    val flightRulesCode: Int,
-    val rvsmStatus: Int,
+    val gatOatCode: GatOatType,
+    val flightRulesCode: FlightRulesType,
+    val rvsmStatus: RvsmStatus,
     val hpr: Boolean,
 )
+
+enum class IfpsFlightIdType(
+    val code: Int,
+) {
+    PLAN_NUMBER(0),
+    UNIT_1_INTERNAL_FLIGHT_NUMBER(1),
+    UNIT_2_INTERNAL_FLIGHT_NUMBER(2),
+    UNIT_3_INTERNAL_FLIGHT_NUMBER(3),
+    ;
+
+    companion object {
+        fun fromCode(code: Int): IfpsFlightIdType = entries.first { it.code == code }
+    }
+}
+
+enum class GatOatType(
+    val code: Int,
+) {
+    UNKNOWN(0),
+    GENERAL_AIR_TRAFFIC(1),
+    OPERATIONAL_AIR_TRAFFIC(2),
+    NOT_APPLICABLE(3),
+    ;
+
+    companion object {
+        fun fromCode(code: Int): GatOatType = entries.first { it.code == code }
+    }
+}
+
+enum class FlightRulesType(
+    val code: Int,
+) {
+    INSTRUMENT_FLIGHT_RULES(0),
+    VISUAL_FLIGHT_RULES(1),
+    NOT_APPLICABLE(2),
+    CONTROLLED_VISUAL_FLIGHT_RULES(3),
+    ;
+
+    companion object {
+        fun fromCode(code: Int): FlightRulesType = entries.first { it.code == code }
+    }
+}
+
+enum class RvsmStatus(
+    val code: Int,
+) {
+    UNKNOWN(0),
+    APPROVED(1),
+    EXEMPT(2),
+    NOT_APPROVED(3),
+    ;
+
+    companion object {
+        fun fromCode(code: Int): RvsmStatus = entries.first { it.code == code }
+    }
+}
 
 data class ControlPosition(
     val centre: Int,
@@ -46,9 +102,37 @@ data class TimeOfDepartureArrival(
 )
 
 data class StandStatus(
-    val emp: Int,
-    val avl: Int,
+    val emp: StandOccupancyStatus,
+    val avl: StandAvailabilityStatus,
 )
+
+enum class StandOccupancyStatus(
+    val code: Int,
+) {
+    EMPTY(0),
+    OCCUPIED(1),
+    UNKNOWN(2),
+    INVALID(3),
+    ;
+
+    companion object {
+        fun fromCode(code: Int): StandOccupancyStatus = entries.first { it.code == code }
+    }
+}
+
+enum class StandAvailabilityStatus(
+    val code: Int,
+) {
+    AVAILABLE(0),
+    NOT_AVAILABLE(1),
+    UNKNOWN(2),
+    INVALID(3),
+    ;
+
+    companion object {
+        fun fromCode(code: Int): StandAvailabilityStatus = entries.first { it.code == code }
+    }
+}
 
 data class PreEmergencyMode3a(
     val valid: Boolean,

@@ -27,15 +27,15 @@ internal fun Cat062CodecSupport.readFlightPlanRelatedData(buffer: ByteBuffer): F
     if (isCompoundSubfieldPresent(indicator, 2)) callsign = readAscii(buffer, 7).trim()
     if (isCompoundSubfieldPresent(indicator, 3)) {
         val raw = buffer.int
-        ifpsFlightId = IfpsFlightId(raw ushr 30, raw and 0x07FFFFFF)
+        ifpsFlightId = IfpsFlightId(IfpsFlightIdType.fromCode(raw ushr 30), raw and 0x07FFFFFF)
     }
     if (isCompoundSubfieldPresent(indicator, 4)) {
         val octet = buffer.get().toUnsignedInt()
         flightCategory =
             FlightCategory(
-                gatOatCode = octet ushr 6,
-                flightRulesCode = (octet ushr 4) and 0x03,
-                rvsmStatus = (octet ushr 2) and 0x03,
+                gatOatCode = GatOatType.fromCode(octet ushr 6),
+                flightRulesCode = FlightRulesType.fromCode((octet ushr 4) and 0x03),
+                rvsmStatus = RvsmStatus.fromCode((octet ushr 2) and 0x03),
                 hpr = (octet and 0x02) != 0,
             )
     }
@@ -69,7 +69,11 @@ internal fun Cat062CodecSupport.readFlightPlanRelatedData(buffer: ByteBuffer): F
     if (isCompoundSubfieldPresent(indicator, 13)) aircraftStand = readAscii(buffer, 6).trim()
     if (isCompoundSubfieldPresent(indicator, 14)) {
         val octet = buffer.get().toUnsignedInt()
-        standStatus = StandStatus((octet ushr 6) and 0x03, (octet ushr 4) and 0x03)
+        standStatus =
+            StandStatus(
+                StandOccupancyStatus.fromCode((octet ushr 6) and 0x03),
+                StandAvailabilityStatus.fromCode((octet ushr 4) and 0x03),
+            )
     }
     if (isCompoundSubfieldPresent(indicator, 15)) standardInstrumentDeparture = readAscii(buffer, 7).trim()
     if (isCompoundSubfieldPresent(indicator, 16)) standardInstrumentArrival = readAscii(buffer, 7).trim()
@@ -129,19 +133,13 @@ internal fun Cat062CodecSupport.writeFlightPlanRelatedData(
     value.tag?.let { writeDataSourceIdentifier(buffer, it) }
     value.callsign?.let { writeAscii(buffer, it, 7) }
     value.ifpsFlightId?.let {
-        require(it.typeCode in 0..0x03) { "flightPlanRelatedData.ifpsFlightId.typeCode out of range: ${it.typeCode}" }
         require(it.number in 0..0x07FFFFFF) { "flightPlanRelatedData.ifpsFlightId.number out of range: ${it.number}" }
-        buffer.putInt(((it.typeCode and 0x03) shl 30) or (it.number and 0x07FFFFFF))
+        buffer.putInt(((it.typeCode.code and 0x03) shl 30) or (it.number and 0x07FFFFFF))
     }
     value.flightCategory?.let {
-        require(it.gatOatCode in 0..0x03) { "flightPlanRelatedData.flightCategory.gatOatCode out of range: ${it.gatOatCode}" }
-        require(
-            it.flightRulesCode in 0..0x03,
-        ) { "flightPlanRelatedData.flightCategory.flightRulesCode out of range: ${it.flightRulesCode}" }
-        require(it.rvsmStatus in 0..0x03) { "flightPlanRelatedData.flightCategory.rvsmStatus out of range: ${it.rvsmStatus}" }
         val octet =
-            ((it.gatOatCode and 0x03) shl 6) or ((it.flightRulesCode and 0x03) shl 4) or
-                ((it.rvsmStatus and 0x03) shl 2) or (if (it.hpr) 0x02 else 0)
+            ((it.gatOatCode.code and 0x03) shl 6) or ((it.flightRulesCode.code and 0x03) shl 4) or
+                ((it.rvsmStatus.code and 0x03) shl 2) or (if (it.hpr) 0x02 else 0)
         buffer.put(octet.toByte())
     }
     value.aircraftType?.let { writeAscii(buffer, it, 4) }
@@ -185,9 +183,7 @@ internal fun Cat062CodecSupport.writeFlightPlanRelatedData(
     }
     value.aircraftStand?.let { writeAscii(buffer, it, 6) }
     value.standStatus?.let {
-        require(it.emp in 0..0x03) { "flightPlanRelatedData.standStatus.emp out of range: ${it.emp}" }
-        require(it.avl in 0..0x03) { "flightPlanRelatedData.standStatus.avl out of range: ${it.avl}" }
-        buffer.put((((it.emp and 0x03) shl 6) or ((it.avl and 0x03) shl 4)).toByte())
+        buffer.put((((it.emp.code and 0x03) shl 6) or ((it.avl.code and 0x03) shl 4)).toByte())
     }
     value.standardInstrumentDeparture?.let { writeAscii(buffer, it, 7) }
     value.standardInstrumentArrival?.let { writeAscii(buffer, it, 7) }

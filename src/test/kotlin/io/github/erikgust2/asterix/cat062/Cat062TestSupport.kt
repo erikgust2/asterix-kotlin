@@ -8,7 +8,7 @@ internal fun minimalValidRecord(
     dataSourceIdentifier: DataSourceIdentifier = DataSourceIdentifier(1, 2),
     timeOfTrackInformationSeconds: Double = 128.0,
     trackNumber: Int = 42,
-    trackStatus: TrackStatus = TrackStatus(mon = true, spi = false, mrh = false, src = 3, cnf = true),
+    trackStatus: TrackStatus = TrackStatus(mon = true, spi = false, mrh = false, src = TrackSource.TRIANGULATION, cnf = true),
 ): Cat062Record =
     Cat062Record(
         dataSourceIdentifier = dataSourceIdentifier,

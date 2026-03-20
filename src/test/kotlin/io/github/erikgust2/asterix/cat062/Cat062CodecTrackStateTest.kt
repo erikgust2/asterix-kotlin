@@ -43,7 +43,7 @@ class Cat062CodecTrackStateTest {
                 mon = true,
                 spi = false,
                 mrh = true,
-                src = 5,
+                src = TrackSource.SPEED_LOOKUP_TABLE,
                 cnf = true,
                 sim = true,
                 tse = true,
@@ -53,10 +53,10 @@ class Cat062CodecTrackStateTest {
                 stp = true,
                 kos = true,
                 ama = true,
-                md4 = 2,
+                md4 = Mode4Status.UNKNOWN_TARGET,
                 me = true,
                 mi = true,
-                md5 = 1,
+                md5 = Mode5Status.FRIENDLY_TARGET,
                 cst = true,
                 psr = false,
                 ssr = true,
@@ -64,8 +64,8 @@ class Cat062CodecTrackStateTest {
                 ads = true,
                 suc = false,
                 aac = true,
-                sds = 2,
-                ems = 5,
+                sds = SurveillanceDataStatus.NON_COOPERATIVE_ONLY,
+                ems = TrackEmergencyStatus.UNLAWFUL_INTERFERENCE,
             )
 
         val buffer = ByteBuffer.allocate(8)
@@ -83,7 +83,7 @@ class Cat062CodecTrackStateTest {
     @Test
     fun trackStatusUsesSingleOctetWhenOnlyFirstExtentIsPresent() {
         val buffer = ByteBuffer.allocate(1)
-        val expected = TrackStatus(mon = true, spi = true, mrh = false, src = 2, cnf = true)
+        val expected = TrackStatus(mon = true, spi = true, mrh = false, src = TrackSource.THREE_D_RADAR, cnf = true)
 
         support.writeTrackStatus(buffer, expected)
 
@@ -96,7 +96,7 @@ class Cat062CodecTrackStateTest {
     fun readTrackStatusLeavesLaterExtentFieldsNullWhenExtentsAreAbsent() {
         val decoded = support.readTrackStatus(bufferOf(0x8A))
 
-        assertEquals(TrackStatus(mon = true, spi = false, mrh = false, src = 2, cnf = true), decoded)
+        assertEquals(TrackStatus(mon = true, spi = false, mrh = false, src = TrackSource.THREE_D_RADAR, cnf = true), decoded)
         assertNull(decoded.sim)
         assertNull(decoded.md4)
         assertNull(decoded.cst)
@@ -135,10 +135,10 @@ class Cat062CodecTrackStateTest {
                 stp = false,
                 kos = false,
                 ama = false,
-                md4 = 0,
+                md4 = Mode4Status.NO_INTERROGATION,
                 me = false,
                 mi = false,
-                md5 = 0,
+                md5 = Mode5Status.NO_INTERROGATION,
                 cst = false,
                 psr = false,
                 ssr = false,
@@ -146,8 +146,8 @@ class Cat062CodecTrackStateTest {
                 ads = false,
                 suc = false,
                 aac = false,
-                sds = 0,
-                ems = 0,
+                sds = SurveillanceDataStatus.COMBINED,
+                ems = TrackEmergencyStatus.NO_EMERGENCY,
             ),
             decoded,
         )
@@ -186,10 +186,10 @@ class Cat062CodecTrackStateTest {
                 stp = false,
                 kos = false,
                 ama = false,
-                md4 = 0,
+                md4 = Mode4Status.NO_INTERROGATION,
                 me = false,
                 mi = false,
-                md5 = 0,
+                md5 = Mode5Status.NO_INTERROGATION,
                 cst = false,
                 psr = false,
                 ssr = false,
@@ -197,8 +197,8 @@ class Cat062CodecTrackStateTest {
                 ads = false,
                 suc = false,
                 aac = false,
-                sds = 0,
-                ems = 0,
+                sds = SurveillanceDataStatus.COMBINED,
+                ems = TrackEmergencyStatus.NO_EMERGENCY,
             )
 
         val buffer = ByteBuffer.allocate(5)
@@ -239,10 +239,10 @@ class Cat062CodecTrackStateTest {
                     ByteBuffer.allocate(5),
                     firstExtentTrackStatus().copy(
                         ama = false,
-                        md4 = 0,
+                        md4 = Mode4Status.NO_INTERROGATION,
                         me = false,
                         mi = false,
-                        md5 = 0,
+                        md5 = Mode5Status.NO_INTERROGATION,
                     ),
                 )
             }
@@ -253,34 +253,12 @@ class Cat062CodecTrackStateTest {
     }
 
     @Test
-    fun writeTrackStatusRejectsOutOfRangeValues() {
-        assertRangeFailure("trackStatus.src out of range") {
-            support.writeTrackStatus(ByteBuffer.allocate(5), firstExtentTrackStatus().copy(src = 8))
-        }
-        assertRangeFailure("trackStatus.md4 out of range") {
-            support.writeTrackStatus(
-                ByteBuffer.allocate(5),
-                firstTwoExtentsTrackStatus().copy(md4 = 4, ama = false, me = false, mi = false, md5 = 0),
-            )
-        }
-        assertRangeFailure("trackStatus.md5 out of range") {
-            support.writeTrackStatus(
-                ByteBuffer.allocate(5),
-                firstTwoExtentsTrackStatus().copy(ama = false, md4 = 0, me = false, mi = false, md5 = 4),
-            )
-        }
-        assertRangeFailure("trackStatus.sds out of range") {
-            support.writeTrackStatus(
-                ByteBuffer.allocate(5),
-                firstFourExtentsTrackStatus().copy(sds = 4, ems = 0),
-            )
-        }
-        assertRangeFailure("trackStatus.ems out of range") {
-            support.writeTrackStatus(
-                ByteBuffer.allocate(5),
-                firstFourExtentsTrackStatus().copy(sds = 0, ems = 8),
-            )
-        }
+    fun trackTypedCodeFamiliesMapSpecCodes() {
+        assertEquals(TrackSource.SPEED_LOOKUP_TABLE, TrackSource.fromCode(5))
+        assertEquals(Mode4Status.UNKNOWN_TARGET, Mode4Status.fromCode(2))
+        assertEquals(Mode5Status.FRIENDLY_TARGET, Mode5Status.fromCode(1))
+        assertEquals(SurveillanceDataStatus.NON_COOPERATIVE_ONLY, SurveillanceDataStatus.fromCode(2))
+        assertEquals(TrackEmergencyStatus.UNLAWFUL_INTERFERENCE, TrackEmergencyStatus.fromCode(5))
     }
 
     @Test
@@ -372,7 +350,8 @@ class Cat062CodecTrackStateTest {
     }
 }
 
-private fun firstExtentTrackStatus(): TrackStatus = TrackStatus(mon = true, spi = false, mrh = false, src = 2, cnf = true)
+private fun firstExtentTrackStatus(): TrackStatus =
+    TrackStatus(mon = true, spi = false, mrh = false, src = TrackSource.THREE_D_RADAR, cnf = true)
 
 private fun firstTwoExtentsTrackStatus(): TrackStatus =
     firstExtentTrackStatus().copy(
@@ -388,10 +367,10 @@ private fun firstTwoExtentsTrackStatus(): TrackStatus =
 private fun firstFourExtentsTrackStatus(): TrackStatus =
     firstTwoExtentsTrackStatus().copy(
         ama = false,
-        md4 = 0,
+        md4 = Mode4Status.NO_INTERROGATION,
         me = false,
         mi = false,
-        md5 = 0,
+        md5 = Mode5Status.NO_INTERROGATION,
         cst = false,
         psr = false,
         ssr = false,
@@ -403,6 +382,6 @@ private fun firstFourExtentsTrackStatus(): TrackStatus =
 
 private fun firstFiveExtentsTrackStatus(): TrackStatus =
     firstFourExtentsTrackStatus().copy(
-        sds = 0,
-        ems = 0,
+        sds = SurveillanceDataStatus.COMBINED,
+        ems = TrackEmergencyStatus.NO_EMERGENCY,
     )

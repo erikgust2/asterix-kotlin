@@ -56,7 +56,7 @@ private val minimalGoldenRecord =
         dataSourceIdentifier = DataSourceIdentifier(1, 2),
         timeOfTrackInformationSeconds = 128.0,
         trackNumber = 42,
-        trackStatus = TrackStatus(mon = true, spi = false, mrh = false, src = 3, cnf = true),
+        trackStatus = TrackStatus(mon = true, spi = false, mrh = false, src = TrackSource.TRIANGULATION, cnf = true),
     )
 
 private val denseGoldenRecord =
@@ -72,10 +72,10 @@ private val denseGoldenRecord =
                 value = "SAS123",
             ),
         trackNumber = 42,
-        trackStatus = TrackStatus(mon = true, spi = true, mrh = false, src = 2, cnf = true),
+        trackStatus = TrackStatus(mon = true, spi = true, mrh = false, src = TrackSource.THREE_D_RADAR, cnf = true),
         flightPlanRelatedData =
             FlightPlanRelatedData(
-                ifpsFlightId = IfpsFlightId(typeCode = 2, number = 0x00123456),
+                ifpsFlightId = IfpsFlightId(typeCode = IfpsFlightIdType.UNIT_2_INTERNAL_FLIGHT_NUMBER, number = 0x00123456),
                 preEmergencyMode3a = PreEmergencyMode3a(valid = true, code = 0x750),
                 preEmergencyCallsign = "EMERG01",
             ),
