@@ -1,10 +1,8 @@
 package io.github.erikgust2.asterix.cat062
 
 import org.junit.Test
-import java.nio.BufferUnderflowException
 import java.nio.ByteBuffer
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -136,7 +134,7 @@ class Cat062CodecMeasuredInformationTest {
                     )
                 }.usedBytes()
 
-        assertFailsWith<BufferUnderflowException> {
+        assertIllegalArgumentFailure("Truncated I062/340 measuredInformation.lastMeasuredMode3aCode payload") {
             support.readMeasuredInformation(ByteBuffer.wrap(truncated(bytes)))
         }
     }

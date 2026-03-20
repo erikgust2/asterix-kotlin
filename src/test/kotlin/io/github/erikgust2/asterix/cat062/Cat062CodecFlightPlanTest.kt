@@ -1,11 +1,9 @@
 package io.github.erikgust2.asterix.cat062
 
 import org.junit.Test
-import java.nio.BufferUnderflowException
 import java.nio.ByteBuffer
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -270,7 +268,7 @@ class Cat062CodecFlightPlanTest {
                     )
                 }.usedBytes()
 
-        assertFailsWith<BufferUnderflowException> {
+        assertIllegalArgumentFailure("Truncated I062/390 flightPlanRelatedData.preEmergencyCallsign payload") {
             support.readFlightPlanRelatedData(ByteBuffer.wrap(truncated(bytes)))
         }
     }

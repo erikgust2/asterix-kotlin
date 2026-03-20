@@ -59,6 +59,11 @@ temporary `ByteBuffer`, and encode paths allocate an internal `ByteBuffer` plus
 the returned `ByteArray`. For hot paths or buffer reuse, prefer the explicit
 `ByteBuffer` methods.
 
+Decode and validation failures now include CAT062 item references such as
+`I062/080` where the codec can identify the failing item. Public data-block
+decode failures also include the one-based record ordinal when the failure is
+inside a nested record.
+
 ## CAT062 Coverage Status
 
 Supported CAT062 item coverage is tracked in `docs/TESTING_PLAN.md`.
