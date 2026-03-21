@@ -1,13 +1,16 @@
 # Architecture
 
-This document describes how the current `asterix-kotlin` codebase is organized,
-how data flows through it, and where to make changes when extending the codec.
+This document explains how the current `asterix-kotlin` codebase is organized,
+how CAT062 data flows through it, and where to make changes without losing the
+spec-driven structure of the codec.
+
+For a practical walkthrough of ASTERIX blocks, FSPEC, FRNs, and CAT062 item
+semantics, read [`HOW_CAT062_WORKS.md`](HOW_CAT062_WORKS.md) first.
 
 ## Scope
 
 The repository is a Kotlin/JVM codec for ASTERIX CAT062 System Track Data,
-currently aligned to the local CAT062 v1.15 reference PDF in the repository
-root.
+aligned to the CAT062 v1.15 PDF in the repository root.
 
 It is intentionally narrow in scope:
 
@@ -16,56 +19,75 @@ It is intentionally narrow in scope:
 - one public entry point: `Cat062Codec`
 - one model namespace: `io.github.erikgust2.asterix.cat062`
 
-It is not yet a general multi-category ASTERIX framework.
+It is not a general multi-category ASTERIX framework.
 
-## High-Level Structure
+## High-Level Layout
 
 The important code lives under:
 
 - `src/main/kotlin/io/github/erikgust2/asterix/cat062`
 - `src/test/kotlin/io/github/erikgust2/asterix/cat062`
 
-The main files and responsibilities are:
+Key production files:
 
 - `Cat062Codec.kt`
-  - public API
-  - reads and writes whole CAT062 data blocks and single records
+  - public API for record and data-block read/write
+  - `ByteBuffer` core path plus convenience `ByteArray` overloads
+  - ASTERIX category and block-length framing for full data blocks
 - `Cat062CodecSupport.kt`
-  - record-level orchestration
-  - FSPEC parsing and writing
+  - CAT062 record orchestration
+  - FSPEC decoding and encoding
   - FRN-to-field dispatch
-  - mandatory field enforcement on write
+  - write-side mandatory-item enforcement
+  - public error-context enrichment with CAT062 item references
 - `Cat062CodecWire.kt`
-  - low-level wire primitives
-  - fixed-length field codecs
-  - integer packing helpers
+  - low-level fixed-width wire helpers
+  - signed and unsigned packing helpers
+  - quantization and range enforcement
   - length-prefixed field handling
+  - compound-indicator helpers reused by complex items
 - `Cat062CodecTrackState.kt`
-  - codecs for track status, mode of movement, system track update ages, and
-    track data ages
+  - `I062/080`, `I062/200`, `I062/290`, and `I062/295`
 - `Cat062CodecAircraftDerivedData.kt`
-  - compound codec for `I062/380` aircraft derived data
+  - `I062/380`
 - `Cat062CodecFlightPlan.kt`
-  - compound codec for `I062/390` flight plan related data
+  - `I062/390`
 - `Cat062CodecMode5.kt`
-  - codec for `I062/110` mode 5 data reports and related fields
+  - `I062/110`
 - `Cat062CodecEstimatedAccuracies.kt`
-  - codec for `I062/500` estimated accuracies
+  - `I062/500`
 - `Cat062CodecMeasuredInformation.kt`
-  - codec for `I062/340` measured information
+  - `I062/340`
 - `Cat062Record.kt`
-  - top-level `Cat062Record` and `Cat062DataBlock` models
+  - `Cat062Record` and `Cat062DataBlock`
 - `Cat062*Types.kt`
-  - model types grouped by domain
-  - common, track, aircraft-derived, measured, flight plan, mode 5, etc.
+  - typed model layer grouped by domain
 - `Cat062ByteArraySupport.kt`
-  - `ByteArray` helpers such as `RawBytes` for value semantics
+  - `RawBytes` and byte-array helpers with value semantics
+
+## Wire Model
+
+At the ASTERIX layer, a CAT062 data block is:
+
+1. category byte `62`
+2. two-byte block length
+3. one or more CAT062 records
+
+Each CAT062 record is:
+
+1. an FSPEC of one or more octets
+2. item payloads for the FRNs selected by that FSPEC
+3. payloads written in UAP order, not arbitrary field order
+
+The codec keeps these layers separate:
+
+- `Cat062Codec.kt` owns ASTERIX block framing
+- `Cat062CodecSupport.kt` owns CAT062 record orchestration
+- item-specific functions own the payload details
 
 ## Public API
 
-The public entry point is `Cat062Codec`.
-
-It exposes eight operations:
+`Cat062Codec` exposes:
 
 - `readDataBlock(buffer: ByteBuffer): Cat062DataBlock`
 - `readDataBlock(bytes: ByteArray): Cat062DataBlock`
@@ -76,48 +98,52 @@ It exposes eight operations:
 - `writeRecord(buffer: ByteBuffer, record: Cat062Record)`
 - `writeRecord(record: Cat062Record): ByteArray`
 
-The API is still `ByteBuffer`-oriented at its core. The `ByteArray` overloads
-are convenience wrappers around that core path. Read-side wrappers allocate a
-temporary `ByteBuffer` object but do not copy the input bytes; write-side
-wrappers allocate an internal `ByteBuffer` and the returned `ByteArray`, and
-may retry with a larger buffer for bigger payloads. Performance-sensitive code
-should continue using the explicit `ByteBuffer` methods. The library does not
-currently expose stream adapters or higher-level builders. It does provide
-`RawBytes` for length-prefixed binary payloads that need value semantics.
+Design choices worth preserving:
 
-## Data Flow
+- `ByteBuffer` is the primary abstraction, not streams or builders
+- `ByteArray` overloads are convenience wrappers, not a second code path
+- full data-block APIs add ASTERIX framing while single-record APIs operate on
+  raw CAT062 records
 
-### Reading
+## Read Path
 
-Reading a full CAT062 block works like this:
+Reading a full data block works like this:
 
-1. `Cat062Codec.readDataBlock` verifies the category byte is `62`.
-2. It reads the ASTERIX block length.
-3. It repeatedly calls `readRecord` until the block boundary is reached.
-4. `Cat062CodecSupport.readRecord` reads the FSPEC.
-5. The FSPEC is converted into a list of FRNs.
-6. Each FRN dispatches to the item-specific reader for that field.
-7. The record is assembled incrementally with `copy(...)` calls on
-   `Cat062Record`.
+1. `Cat062Codec.readDataBlock` verifies category `62`.
+2. It reads the ASTERIX block length and computes the block boundary.
+3. It repeatedly calls `readRecord` until the boundary is reached.
+4. Nested record failures are wrapped with the one-based record ordinal.
 
-This means the record decoder is table-driven by FRN order, not by hand-written
-per-record parsing logic.
+Reading a single record works like this:
 
-### Writing
+1. `Cat062CodecSupport.readRecord` reads the FSPEC.
+2. The FSPEC is expanded into present FRNs.
+3. FRNs dispatch through a table-driven `when` block.
+4. Each FRN reader updates a `Cat062Record` via `copy(...)`.
+5. Item-level failures are wrapped so public errors include the relevant
+   CAT062 item reference where known.
 
-Writing runs in the opposite direction:
+This is intentionally UAP-driven. The decoder is controlled by FRN presence and
+order, not by ad hoc per-record parsing logic.
 
-1. `Cat062Codec.writeDataBlock` writes the category byte and reserves space for
-   the block length.
-2. Each record is written by `Cat062CodecSupport.writeRecord`.
-3. `writeRecord` first validates CAT062 mandatory items.
-4. It computes the list of present FRNs from the non-null fields of
-   `Cat062Record`.
-5. It writes the FSPEC for those FRNs.
-6. It writes item payloads in FRN order.
-7. `writeDataBlock` backfills the final ASTERIX block length.
+## Write Path
 
-The current mandatory items enforced on write are:
+Writing a single record works like this:
+
+1. `Cat062CodecSupport.writeRecord` checks mandatory items.
+2. It computes the present FRN list from non-null `Cat062Record` fields.
+3. It writes the FSPEC for those FRNs.
+4. It writes item payloads in FRN order.
+5. Item-specific writers enforce range and extent rules with `require(...)`.
+
+Writing a full data block adds ASTERIX framing:
+
+1. `Cat062Codec.writeDataBlock` writes category `62`.
+2. It reserves two bytes for the block length.
+3. It writes each record through the normal record writer.
+4. It backfills the final length.
+
+Mandatory items currently enforced on write:
 
 - `I062/010` Data Source Identifier
 - `I062/040` Track Number
@@ -126,115 +152,74 @@ The current mandatory items enforced on write are:
 
 ## Model Layer
 
-`Cat062Record` is the aggregate model for a single CAT062 record. Nearly all
-fields are nullable. Null usually means "item absent from the record".
+`Cat062Record` is the aggregate model for one CAT062 record. Most fields are
+nullable and `null` normally means that item is absent from the FSPEC.
 
-`I062/080` Track Status is the main exception to treat carefully: null is only
-used for absent extents, not for absent individual bits inside a present
-extent. Octet 1 is always required, and if any later extent is present then all
-fields in that extent, and every earlier implied extent, must be specified.
-Write-side validation rejects partially specified extents so the model does not
-silently collapse null into spec-default zero bits.
+The model is split by domain:
 
-`I062/270` Target Size & Orientation also has dependent extent semantics on
-write. `orientationDegrees == null` means only the first octet with length is
-present, `orientationDegrees != null && widthMeters == null` means the first
-extent is present without the second, and `widthMeters != null` requires
-`orientationDegrees != null` because width only exists in the second extent.
+- `Cat062CommonTypes.kt`: shared scalar and fixed-width structures
+- `Cat062TrackTypes.kt`: track state, track ages, movement, accuracies, fleet
+  identification
+- `Cat062AircraftTypes.kt`: aircraft-derived data and related code tables
+- `Cat062FlightPlanTypes.kt`: flight-plan related structures
+- `Cat062Mode5Types.kt`: mode 5 data
+- `Cat062MeasuredTypes.kt`: measured-information structures
 
-The supporting type files group related models by domain:
+Important modeling conventions:
 
-- `Cat062CommonTypes.kt`
-- `Cat062TrackTypes.kt`
-- `Cat062AircraftTypes.kt`
-- `Cat062MeasuredTypes.kt`
-- `Cat062FlightPlanTypes.kt`
-- `Cat062Mode5Types.kt`
+- fixed and simple items use plain Kotlin data classes and enums where the
+  code table is closed and stable
+- sparse or potentially extensible code tables use sealed `Known` /
+  `Unknown(code)` models so unknown values can still round-trip unchanged
+- opaque binary payloads use `RawBytes` to get value semantics instead of raw
+  `ByteArray` reference equality
 
-The code uses plain Kotlin data classes heavily. Spec-coded fields that have a
-stable CAT062 meaning are now modeled as enums or sealed `Known` /
-`Unknown(code)` families at the model layer, and the codecs map those values
-through `fromCode(...)` and `.code` helpers rather than duplicating tables
-inline. Truly numeric identifiers, counters, and opaque binary payloads remain
-numeric.
+## Extent And Presence Semantics
 
-Closed code tables that fully cover the extracted wire bit range can stay as
-enums. Sparse tables that may receive new spec-defined values should use sealed
-`Known` / `Unknown(code)` families so decode stays forward-compatible and
-unknown values can be re-encoded unchanged.
+Some CAT062 items need more than plain nullability.
 
-`RawBytes` is a small wrapper around `ByteArray` used where binary payloads need
-value semantics instead of reference equality.
+`I062/080` Track Status:
 
-Some CAT062 substructures are intentionally still opaque pass-through payloads
-rather than fully decoded models. The remaining examples are the `RE` and `SP`
-length-prefixed payloads.
+- octet 1 is always required when the item is present
+- later extents are optional
+- if a later extent is present, all fields in that extent must be specified
+- the writer rejects partially specified extents rather than silently encoding
+  zero/default bits
 
-## Fixed vs Compound Items
+`I062/270` Target Size & Orientation:
 
-There are two broad codec styles in the repository.
+- `orientationDegrees == null` means only the first octet with length is
+  present
+- `orientationDegrees != null && widthMeters == null` means the first extent is
+  present but the second is absent
+- `widthMeters != null` requires `orientationDegrees != null`
 
-### Fixed-Length and Primitive Items
+Compound items such as `I062/380`, `I062/390`, `I062/500`, and `I062/340` use
+their own presence indicators and subfield-specific rules inside the dedicated
+codec files.
 
-These mostly live in `Cat062CodecWire.kt` and handle:
+## Error Model
 
-- scalar numeric conversions
-- fixed-width integer packing
-- signed and unsigned interpretation
-- simple multi-octet structures
+The public API uses runtime exceptions for invalid input and invalid write-side
+state.
 
-Examples:
+Current behavior:
 
-- positions
-- velocities
-- mode 2 / mode 3 codes
-- barometric altitude
-- length-prefixed reserved fields
+- truncation normally surfaces as `IllegalArgumentException`
+- record and item context is added close to the failure site
+- item references such as `I062/390` are preserved in public messages where the
+  codec can identify the failing item
+- full data-block decode failures add the one-based record ordinal
 
-### Compound and Variable-Length Items
+This context enrichment is part of the public usability of the codec and should
+be preserved during refactors.
 
-These live in the focused domain codec files and handle:
+## Testing Structure
 
-- compound presence indicators
-- variable extents
-- repeated subfields
-- items whose shape depends on flags
-
-Examples:
-
-- aircraft derived data
-- track status
-- system track update ages
-- track data ages
-- flight plan related data
-- estimated accuracies
-- measured information
-
-If you need to work on a complex spec item, start in the codec file named for
-that domain.
-
-## Internal Conventions
-
-The codebase follows a few important conventions:
-
-- FRNs are encoded and decoded through FSPEC helper logic in
-  `Cat062CodecSupport.kt`.
-- Compound subfield presence is encoded and decoded through helper functions in
-  `Cat062CodecWire.kt`, then composed by the focused domain codec files.
-- Field-specific validation is usually enforced at write time with `require(...)`.
-- Decode and validation failures are enriched close to record/item dispatch so
-  public errors carry CAT062 item references such as `I062/080`; compound
-  codec entry points add subfield context where that materially improves
-  truncation diagnostics.
-- Reads are mostly permissive about default values and absent optional fields.
-- Writes are generally driven by nullability: non-null fields become present
-  items or subfields.
-
-## Testing Strategy
-
-The test suite is split by codec area:
+The regression suite is organized by codec area:
 
 - `Cat062CodecDataBlockTest`
+- `Cat062CodecGoldenVectorTest`
 - `Cat062CodecSupportTest`
 - `Cat062CodecWireFixedItemsTest`
 - `Cat062CodecTrackStateTest`
@@ -245,62 +230,54 @@ The test suite is split by codec area:
 - `Cat062CodecMeasuredInformationTest`
 - `Cat062TestSupport`
 
-The test suite covers:
-
-- public record and data-block round trips through both `ByteBuffer` and `ByteArray` entry points
-- FSPEC bit layout and FRN dispatch behavior
-- spec-layout assertions for fixed and compound items
-- malformed-input and truncation behavior
-- mandatory item enforcement on write
-
-The local CAT062 v1.15 PDF is the source of truth for spec alignment.
 `docs/TESTING_PLAN.md` is the active coverage map and should stay aligned with
-the current suite layout.
-
-## Current Architectural Strengths
-
-- Small public API
-- Clear separation between public API, record orchestration, wire helpers, and
-  model types
-- Focused domain codec files for the more complex CAT062 items
-- Strong use of value types
-- Spec-driven write validation in several places
-- Fast local test cycle
-
-## Current Architectural Constraints
-
-- The API is low-level and buffer-oriented
-- Some spec fields still remain intentionally numeric when the CAT062 PDF only
-  exposes opaque category numbers rather than stable named semantics
-- Several CAT062 compound items remain inherently complex even after file
-  splitting
-- The project is category-specific, so cross-category ASTERIX reuse is limited
+the implemented item set and suite layout.
 
 ## How To Extend The Codec
 
 When adding or fixing a CAT062 item:
 
-1. Confirm the wire layout in the v1.15 PDF.
-2. Update or add model fields in the relevant `Cat062*Types.kt` file.
+1. Confirm the wire layout in the CAT062 v1.15 PDF.
+2. Decide whether the model belongs in an existing `Cat062*Types.kt` file or a
+   new one.
 3. Add read and write logic in the correct codec file:
    - fixed/simple item: usually `Cat062CodecWire.kt`
-   - track state and ages: `Cat062CodecTrackState.kt`
+   - track-state and age items: `Cat062CodecTrackState.kt`
    - aircraft-derived data: `Cat062CodecAircraftDerivedData.kt`
-   - flight plan data: `Cat062CodecFlightPlan.kt`
+   - flight-plan data: `Cat062CodecFlightPlan.kt`
    - mode 5 data: `Cat062CodecMode5.kt`
    - estimated accuracies: `Cat062CodecEstimatedAccuracies.kt`
    - measured information: `Cat062CodecMeasuredInformation.kt`
-4. Wire the item into FRN dispatch in `Cat062CodecSupport.kt`.
-5. Add or update the focused test file for that codec area.
-6. Update `README.md`, `docs/TESTING_PLAN.md`, and this document if the public
-   API, coverage map, or architecture description changed.
+4. Wire the item into the FRN dispatch and present-FRN calculation in
+   `Cat062CodecSupport.kt`.
+5. Add or update focused tests for round-trip, spec-layout, and malformed-input
+   behavior.
+6. Update `README.md`, `docs/HOW_CAT062_WORKS.md`, `docs/TESTING_PLAN.md`, and
+   this document if the support boundary or architecture changed.
 
-## What Future Refactors Should Preserve
+## Architectural Strengths
 
-If you refactor this codebase later, preserve these properties:
+- small and obvious public API
+- clear separation between ASTERIX framing, record orchestration, wire helpers,
+  and domain-specific compound codecs
+- model types that keep spec semantics visible in Kotlin
+- strong write-side validation for mandatory items and wire ranges
+- regression tests that pin exact bytes for representative records and data
+  blocks
 
-- `Cat062Codec` remains the obvious public entry point
-- FSPEC handling stays centralized
-- item-specific wire logic stays isolated from model definitions
-- tests remain spec-oriented, not just happy-path object equality checks
-- mandatory CAT062 write constraints remain enforced
+## Architectural Constraints
+
+- the public API is intentionally low-level and `ByteBuffer`-oriented
+- some CAT062 structures remain inherently dense and spec-heavy
+- `RE` and `SP` are still opaque payloads rather than decoded sub-models
+- the repository is category-specific, so cross-category ASTERIX reuse is
+  intentionally limited
+
+## Refactors Should Preserve
+
+- `Cat062Codec` as the obvious public entry point
+- centralized FSPEC handling
+- centralized FRN ordering and dispatch
+- separation between model definitions and wire logic
+- spec-driven tests, not only object-equality round-trips
+- mandatory CAT062 write constraints
